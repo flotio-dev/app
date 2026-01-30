@@ -26,9 +26,9 @@ import LogoutIcon from "@mui/icons-material/Logout";
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
-  { label: "Projects", icon: <FolderIcon />, href: "/dashboard/projects" },
-  { label: "Deployments", icon: <ShowChartIcon />, href: "/dashboard/deployments" },
-  { label: "Team", icon: <GroupIcon />, href: "/dashboard/team" },
+  { label: "Projects", icon: <FolderIcon />, href: "/projects" },
+  { label: "Deployments", icon: <ShowChartIcon />, href: "/deployments" },
+  { label: "Team", icon: <GroupIcon />, href: "/team" },
   { label: "Preferences", icon: <SettingsIcon />, href: "/preferences" },
 ];
 

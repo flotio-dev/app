@@ -2,264 +2,170 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
+import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 const buildsData = [
   {
-    status: 'building',
-    project: 'veloce-dashboard',
-    description: 'fix: update sidebar navigation items',
-    branch: 'main',
-    environment: 'Production',
-    duration: 'Building...',
-    time: 'Just now',
-    avatar: '👤',
+    id: "build_0073",
+    status: "success",
+    startTime: "24 juil. 2025, 11:30",
+    endTime: "24 juil. 2025, 11:47",
+    description: "Commit 9afc1e1 – Optimize images",
   },
   {
-    status: 'success',
-    project: 'veloce-landing',
-    description: 'feat: add new pricing section',
-    branch: 'feat/pricing',
-    environment: '',
-    duration: '1m 45s',
-    time: '12m ago',
-    avatar: '👤',
+    id: "build_0072",
+    status: "failed",
+    startTime: "23 juil. 2025, 17:12",
+    endTime: "23 juil. 2025, 17:25",
+    description: "Commit 1b23cde – Fix env var typo",
   },
   {
-    status: 'success',
-    project: 'veloce-api',
-    description: 'chore: upgrade dependencies',
-    branch: 'main',
-    environment: 'Production',
-    duration: '2m 12s',
-    time: '45m ago',
-    avatar: '👤',
+    id: "build_0071",
+    status: "success",
+    startTime: "22 juil. 2025, 14:45",
+    endTime: "22 juil. 2025, 15:02",
+    description: "Commit a8f2b5c – Add new feature",
   },
   {
-    status: 'failed',
-    project: 'veloce-dashboard',
-    description: 'refactor: authentication flow components',
-    branch: 'dev',
-    environment: '',
-    duration: 'Failed',
-    time: '2h ago',
-    avatar: '👤',
+    id: "build_0070",
+    status: "success",
+    startTime: "21 juil. 2025, 09:30",
+    endTime: "21 juil. 2025, 09:45",
+    description: "Commit c3e4d9f – Update dependencies",
   },
   {
-    status: 'success',
-    project: 'veloce-landing',
-    description: 'content: update blog posts',
-    branch: 'main',
-    environment: 'Production',
-    duration: '58s',
-    time: '4h ago',
-    avatar: '👤',
+    id: "build_0069",
+    status: "failed",
+    startTime: "20 juil. 2025, 16:20",
+    endTime: "20 juil. 2025, 16:35",
+    description: "Commit 2f7g8h9 – Refactor utils",
   },
 ];
 
 const BuildsList: React.FC = () => {
   const theme = useTheme();
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "success":
+        return { bg: "#d1fae5", text: "#047857", label: "Succès" };
+      case "failed":
+        return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
+      case "building":
+        return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
+      default:
+        return { bg: "#f3f4f6", text: "#374151", label: "Inconnu" };
+    }
+  };
+
   return (
-    <Paper
-      elevation={1}
-      sx={{
-        borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.background.paper,
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          p: 2,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <input
-            placeholder="Search deployments..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: '8px',
-              background: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-              fontSize: '14px',
-            }}
-          />
-        </Box>
-        <Box display="flex" gap={1}>
-          <select
-            style={{
-              padding: '8px 12px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: '8px',
-              background: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-            }}
-          >
-            <option>All Projects</option>
-          </select>
-          <select
-            style={{
-              padding: '8px 12px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: '8px',
-              background: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-            }}
-          >
-            <option>All Environments</option>
-          </select>
-          <select
-            style={{
-              padding: '8px 12px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: '8px',
-              background: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-            }}
-          >
-            <option>Status</option>
-          </select>
-        </Box>
-      </Box>
-
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {/* Builds List */}
-      <Box>
-        {buildsData.map((build, index) => (
-          <Box
-            key={index}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              p: 2,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-              '&:last-child': { borderBottom: 'none' },
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-              '&:hover': { background: theme.palette.action.hover },
-            }}
-          >
-            {/* Status Indicator */}
-            <Box
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        {buildsData.map((build) => {
+          const statusColor = getStatusColor(build.status);
+          return (
+            <Paper
+              key={build.id}
+              elevation={0}
               sx={{
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                background:
-                  build.status === 'success'
-                    ? '#10b981'
-                    : build.status === 'failed'
-                    ? '#ef4444'
-                    : build.status === 'building'
-                    ? '#f59e0b'
-                    : '#6b7280',
-              }}
-            />
-
-            {/* Project Info */}
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" fontWeight={600}>
-                {build.project}
-              </Typography>
-              <Box display="flex" gap={1} sx={{ mt: 0.5 }}>
-                <Typography variant="caption" color={theme.palette.text.secondary}>
-                  {build.description}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    background: theme.palette.action.hover,
-                    px: 1,
-                    borderRadius: 1,
-                    color: theme.palette.text.secondary,
-                  }}
-                >
-                  {build.branch}
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Environment */}
-            {build.environment && (
-              <Typography
-                variant="caption"
-                sx={{
-                  background: '#d1fae5',
-                  color: '#047857',
-                  px: 2,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontWeight: 600,
-                }}
-              >
-                {build.environment}
-              </Typography>
-            )}
-
-            {/* Duration */}
-            <Box sx={{ minWidth: '80px' }}>
-              <Typography
-                variant="caption"
-                color={theme.palette.text.secondary}
-                sx={{ display: 'block' }}
-              >
-                DURATION
-              </Typography>
-              <Typography
-                variant="caption"
-                fontWeight={500}
-                sx={{
-                  color:
-                    build.status === 'failed'
-                      ? '#ef4444'
-                      : build.status === 'building'
-                      ? '#f59e0b'
-                      : theme.palette.text.primary,
-                }}
-              >
-                {build.duration}
-              </Typography>
-            </Box>
-
-            {/* Time */}
-            <Box sx={{ minWidth: '60px' }}>
-              <Typography variant="caption" color={theme.palette.text.secondary}>
-                TIME
-              </Typography>
-              <Typography variant="caption" fontWeight={500}>
-                {build.time}
-              </Typography>
-            </Box>
-
-            {/* Avatar */}
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: theme.palette.action.hover,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 2,
+                p: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1.5,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  background: theme.palette.action.hover,
+                  boxShadow: 1,
+                },
               }}
             >
-              {build.avatar}
-            </Box>
+              {/* ID */}
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{
+                  color: theme.palette.primary.main,
+                  minWidth: '100px',
+                  cursor: 'pointer',
+                }}
+              >
+                {build.id}
+              </Typography>
 
-            {/* Arrow */}
-            <Typography sx={{ color: theme.palette.text.secondary }}>›</Typography>
-          </Box>
-        ))}
+              {/* Status Chip */}
+              <Chip
+                label={statusColor.label}
+                size="small"
+                sx={{
+                  background: statusColor.bg,
+                  color: statusColor.text,
+                  fontWeight: 600,
+                  height: 24,
+                  borderRadius: 0.75,
+                  minWidth: '100px',
+                }}
+              />
+
+              {/* Start Time */}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  minWidth: '150px',
+                }}
+              >
+                {build.startTime}
+              </Typography>
+
+              {/* End Time */}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  minWidth: '150px',
+                }}
+              >
+                {build.endTime}
+              </Typography>
+
+              {/* Description */}
+              <Typography
+                variant="body2"
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {build.description}
+              </Typography>
+
+              {/* Actions */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                <IconButton
+                  size="small"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    '&:hover': { background: theme.palette.action.hover },
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Paper>
+          );
+        })}
       </Box>
-    </Paper>
+    </Box>
   );
 };
 

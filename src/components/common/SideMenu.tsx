@@ -23,6 +23,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import SettingsIcon from "@mui/icons-material/Settings";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { useAuth } from "@/auth/AuthContext";
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
@@ -37,6 +38,7 @@ function SideMenu() {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const { user } = useAuth();
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -155,7 +157,7 @@ function SideMenu() {
             A
           </Avatar>
           <Typography color={theme.palette.text.primary} fontWeight={500}>
-            Arthur Delautre
+            {user?.email || "Utilisateur"}
           </Typography>
           <IconButton
             onClick={handleMenu}

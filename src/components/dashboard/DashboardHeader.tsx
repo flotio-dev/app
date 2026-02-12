@@ -6,9 +6,11 @@ import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SearchIcon from "@mui/icons-material/Search";
+import { useRouter } from "next/navigation";
 
 const DashboardHeader: React.FC = () => {
   const theme = useTheme();
+  const router = useRouter();
   return (
     <Box display="flex" alignItems="center" justifyContent="space-between" width="100%" height={64}>
       <Box display="flex" alignItems="center" gap={2}>
@@ -34,6 +36,8 @@ const DashboardHeader: React.FC = () => {
           color="primary"
           startIcon={<AddIcon />}
           sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
+          onClick={() => router.push('/new-project')}
+
         >
           New Project
         </Button>

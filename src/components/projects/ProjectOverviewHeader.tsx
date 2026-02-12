@@ -18,6 +18,7 @@ import PublishIcon from "@mui/icons-material/Publish";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 
+
 const ProjectsHeader: React.FC = () => {
 	const theme = useTheme();
 	const router = useRouter();
@@ -29,7 +30,7 @@ const ProjectsHeader: React.FC = () => {
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>
-				
+
 				<Button
 					color="inherit"
 					sx={{ minWidth: 40, p: 1, borderRadius: 1 }}

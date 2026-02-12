@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -14,6 +17,7 @@ interface BuildsListProps {
 
 const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const theme = useTheme();
+  const router = useRouter();
 
   const filteredBuilds = projectId
     ? mockBuildsData.filter((build) => build.projectId === projectId)
@@ -42,6 +46,7 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
             <Paper
               key={build.id}
               elevation={0}
+              onClick={() => router.push(`/projects/${projectId}/builds/${build.id}`)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',

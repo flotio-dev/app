@@ -5,9 +5,23 @@ import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import { mockBuildsData } from "./mockBuildsData";
 
-const BuildsOverview: React.FC = () => {
+interface BuildsOverviewProps {
+  projectId?: string;
+}
+
+const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
   const theme = useTheme();
+
+  const filteredBuilds = projectId
+    ? mockBuildsData.filter((build) => build.projectId === projectId)
+    : mockBuildsData;
+
+  const totalBuilds = filteredBuilds.length;
+  const successBuilds = filteredBuilds.filter((build) => build.status === "success").length;
+  const failedBuilds = filteredBuilds.filter((build) => build.status === "failed").length;
+  const successRate = totalBuilds > 0 ? Math.round((successBuilds / totalBuilds) * 100) : 0;
 
   return (
     <Paper
@@ -40,7 +54,7 @@ const BuildsOverview: React.FC = () => {
             TOTAL DES BUILDS
           </Typography>
           <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
-            73
+            {totalBuilds}
           </Typography>
         </Paper>
 
@@ -63,10 +77,10 @@ const BuildsOverview: React.FC = () => {
             <CheckCircleIcon sx={{ color: '#10b981', fontSize: 28 }} />
             <Box>
               <Typography variant="h6" fontWeight={700}>
-                66
+                {successBuilds}
               </Typography>
               <Typography variant="caption" color={theme.palette.success.main}>
-                90%
+                {successRate}%
               </Typography>
             </Box>
           </Box>
@@ -90,7 +104,7 @@ const BuildsOverview: React.FC = () => {
           <Box display="flex" alignItems="center" justifyContent="center" gap={1} sx={{ mt: 1 }}>
             <CancelIcon sx={{ color: '#ef4444', fontSize: 28 }} />
             <Typography variant="h6" fontWeight={700}>
-              5
+              {failedBuilds}
             </Typography>
           </Box>
         </Paper>

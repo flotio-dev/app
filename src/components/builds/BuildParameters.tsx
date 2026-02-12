@@ -43,15 +43,6 @@ const BuildParameters: React.FC = () => {
 
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color={theme.palette.text.secondary}>
-            Commande
-          </Typography>
-          <Typography variant="body2" fontWeight={500}>
-            pnpm build
-          </Typography>
-        </Box>
-
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="body2" color={theme.palette.text.secondary}>
             Dossier de sortie
           </Typography>
           <Typography variant="body2" fontWeight={500} color={theme.palette.text.secondary}>
@@ -61,7 +52,7 @@ const BuildParameters: React.FC = () => {
 
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color={theme.palette.text.secondary}>
-            Node
+            Node version
           </Typography>
           <Typography variant="body2" fontWeight={500}>
             20

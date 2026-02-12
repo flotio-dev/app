@@ -32,11 +32,9 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 	const theme = useTheme();
 	const router = useRouter();
 	const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-	// Close menu on outside click
 	useEffect(() => {
 		if (openMenuId === null) return;
 		const handleClick = (e: MouseEvent) => {
-			// Only close if click is outside any menu
 			const menu = document.getElementById('project-actions-menu');
 			if (menu && !menu.contains(e.target as Node)) {
 				setOpenMenuId(null);
@@ -58,15 +56,13 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 				});
 				if (!res.ok) throw new Error('Failed to fetch projects');
 				const data = await res.json();
-				// Map API response to UI format if needed
 				setProjects(
 					(data.projects || []).map((p: any) => ({
 						id: p.id,
 						name: p.name,
 						repoUrl: p.git_repo,
-						branch: p.git_username || '',
-						status: 'Healthy', // Default, adapt if you have a status field
-						statusKey: 'success', // Default, adapt if you have a status field
+						status: 'Healthy',
+						statusKey: 'success',
 						icon: p.name ? p.name[0].toUpperCase() : '?',
 						lastDeployment: p.updated_at || '',
 						author: p.git_username || '',
@@ -77,7 +73,6 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 			}
 		};
 		fetchProjects();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 	const statusColors: Record<string, string> = {
 		success: theme.palette.success.main,
@@ -86,24 +81,16 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 		info: theme.palette.info.main,
 	};
 	const [statusFilter, setStatusFilter] = useState<string>("");
-	const [branchFilter, setBranchFilter] = useState<string>("");
 	const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
-	const [branchAnchorEl, setBranchAnchorEl] = useState<null | HTMLElement>(null);
 	const openStatusMenu = Boolean(statusAnchorEl);
-	const openBranchMenu = Boolean(branchAnchorEl);
-
-	// Récupérer toutes les valeurs uniques de status et de branch
 	const allStatuses = Array.from(new Set(projects.map(p => p.status)));
-	const allBranches = Array.from(new Set(projects.map(p => p.branch)));
-
 	const filteredProjects = projects.filter(p => {
 		const matchesSearch =
 			p.name.toLowerCase().includes(search.toLowerCase()) ||
 			p.repoUrl.toLowerCase().includes(search.toLowerCase()) ||
 			p.author.toLowerCase().includes(search.toLowerCase());
 		const matchesStatus = statusFilter ? p.status === statusFilter : true;
-		const matchesBranch = branchFilter ? p.branch === branchFilter : true;
-		return matchesSearch && matchesStatus && matchesBranch;
+		return matchesSearch && matchesStatus;
 	});
 
 	const handleMenuOpen = (id: number) => {
@@ -136,41 +123,8 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 					<thead>
 						<tr style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
 							<th className="px-6 py-4 font-semibold tracking-wider">PROJECT</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">LAST DEPLOYMENT</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">
-								<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-									<span>BRANCH</span>
-									<Button
-										variant="text"
-										size="small"
-										sx={{ minWidth: 0, p: 0, fontSize: '0.85em', textTransform: 'none' }}
-										onClick={e => setBranchAnchorEl(e.currentTarget)}
-									>
-										{branchFilter ? branchFilter : 'All'}
-									</Button>
-									<Menu
-										anchorEl={branchAnchorEl}
-										open={openBranchMenu}
-										onClose={() => setBranchAnchorEl(null)}
-									>
-										<MenuItem
-											selected={branchFilter === ""}
-											onClick={() => { setBranchFilter(""); setBranchAnchorEl(null); }}
-										>
-											All Branches
-										</MenuItem>
-										{allBranches.map(branch => (
-											<MenuItem
-												key={branch}
-												selected={branchFilter === branch}
-												onClick={() => { setBranchFilter(branch); setBranchAnchorEl(null); }}
-											>
-												{branch}
-											</MenuItem>
-										))}
-									</Menu>
-								</div>
-							</th>
+							<th className="px-6 py-4 font-semibold tracking-wider">DEPOT GIT</th>
+							<th className="px-6 py-4 font-semibold tracking-wider">LAST UPDATE</th>
 							<th className="px-6 py-4 font-semibold tracking-wider">
 								<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 									<span>STATUS</span>
@@ -226,8 +180,11 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 									<span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontWeight: 700, fontSize: 18, background: theme.palette.primary.main, color: theme.palette.getContrastText(theme.palette.primary.main) }}>{project.icon}</span>
 									<div>
 										<div className="font-semibold text-base leading-tight">{project.name}</div>
-										<div className="text-xs" style={{ color: theme.palette.text.secondary }}>{project.repoUrl}</div>
+										<div className="text-xs" style={{ color: theme.palette.text.secondary }}>By {project.author}</div>
 									</div>
+								</td>
+								<td className="px-6 py-4">
+									<span className="font-medium">{project.repoUrl}</span>
 								</td>
 								<td className="px-6 py-4">
 									<div className="font-medium">
@@ -246,10 +203,6 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 												})()
 											: 'N/A'}
 									</div>
-									<div className="text-xs" style={{ color: theme.palette.text.secondary }}>By {project.author}</div>
-								</td>
-								<td className="px-6 py-4">
-									<span className="font-medium">{project.branch}</span>
 								</td>
 								<td className="px-6 py-4">
 									<StatusBadge status={project.status} color={statusColors[project.statusKey] || theme.palette.info.main} />

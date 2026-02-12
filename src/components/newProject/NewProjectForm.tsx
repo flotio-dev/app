@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -26,6 +27,7 @@ const NewProjectForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { request } = useApi();
+  const router = useRouter();
 
   const isStep0Valid = name.trim() !== "" && buildFolder.trim() !== "" && flutterVersion.trim() !== "";
   const isStep1Valid = gitRepo.trim() !== "" && gitToken.trim() !== "" && gitUsername.trim() !== "";
@@ -57,6 +59,8 @@ const NewProjectForm: React.FC = () => {
       );
       if (!res.ok) throw new Error("Erreur lors de la création du projet");
       setSuccess(true);
+      // Redirect to /projects after successful creation
+      router.push("/projects");
     } catch (e: any) {
       setError(e.message || "Erreur inconnue");
     } finally {

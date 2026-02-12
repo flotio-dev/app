@@ -7,9 +7,12 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
+
 import AddIcon from "@mui/icons-material/Add";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SearchIcon from "@mui/icons-material/Search";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import PublishIcon from "@mui/icons-material/Publish";
 
 
 import TextField from "@mui/material/TextField";
@@ -31,20 +34,7 @@ const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange 
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>
-				<TextField
-					size="small"
-					placeholder="Search projects..."
-					value={search}
-					onChange={e => onSearchChange(e.target.value)}
-					sx={{ minWidth: 180, background: theme.palette.background.paper, borderRadius: 1 }}
-					InputProps={{
-						startAdornment: (
-							<InputAdornment position="start">
-								<SearchIcon sx={{ color: theme.palette.text.secondary }} />
-							</InputAdornment>
-						),
-					}}
-				/>
+				
 				<Button
 					color="inherit"
 					sx={{ minWidth: 40, p: 1, borderRadius: 1 }}
@@ -54,11 +44,20 @@ const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange 
 				<Button
 					variant="contained"
 					color="primary"
-					startIcon={<AddIcon />}
+					startIcon={<PublishIcon />}
 					sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
 					onClick={() => router.push('/new-project')}
 				>
-					New Project
+					Redeploy build
+				</Button>
+				<Button
+					variant="contained"
+					color="primary"
+					startIcon={<CloudDownloadIcon />}
+					sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
+					onClick={() => router.push('/new-project')}
+				>
+					Download project
 				</Button>
 			</Box>
 		</Box>

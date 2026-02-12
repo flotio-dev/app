@@ -18,6 +18,7 @@ interface BuildDetailsHeaderProps {
   branch: string;
   message: string;
   startTime?: string;
+  duration?: number;
 }
 
 const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
@@ -27,6 +28,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
   branch,
   message,
   startTime,
+  duration,
 }) => {
   const theme = useTheme();
 
@@ -37,6 +39,8 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
       case "failed":
         return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
       case "building":
+      case "pending":
+      case "running":
         return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
       default:
         return { bg: "#f3f4f6", text: "#374151", label: "En attente" };
@@ -44,6 +48,13 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
   };
 
   const statusColor = getStatusColor(status);
+
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
 
   return (
     <Paper
@@ -132,6 +143,16 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
             </Typography>
             <Typography variant="body2" fontWeight={600}>
               {startTime}
+            </Typography>
+          </Box>
+        )}
+        {duration !== undefined && (
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              DURÉE
+            </Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {formatDuration(duration)}
             </Typography>
           </Box>
         )}

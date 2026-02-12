@@ -1,18 +1,36 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import SideMenu from "@/components/common/SideMenu";
 import BuildDetailsHeader from "@/components/builds/BuildDetailsHeader";
 import BuildSteps from "@/components/builds/BuildSteps";
 import BuildLog from "@/components/builds/BuildLog";
-import { mockBuildsData } from "@/components/builds/mockBuildsData";
+import { useApi } from "@/hooks/useApi";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+interface APIBuild {
+  apk_url: string;
+  container_id: string;
+  created_at: string;
+  duration: number;
+  id: number;
+  platform: string;
+  project_id: number;
+  status: string;
+  updated_at: string;
+}
 
 export default function BuildDetailsPage() {
   const params = useParams();
   const buildId = params.buildId as string;
   const projectId = params.id as string;
+  const { request } = useApi();
+  const [build, setBuild] = useState<APIBuild | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Empêche le scroll horizontal global
   useEffect(() => {
@@ -23,39 +41,137 @@ export default function BuildDetailsPage() {
       document.documentElement.style.overflowX = '';
     };
   }, []);
-  // Trouver le build correspondant
-  const build = mockBuildsData.find((b) => b.id === buildId);
 
-  // Mock data pour les étapes
-  const buildSteps = [
-    { name: "Initialize Build", status: "success" as const, duration: "2s" },
-    { name: "Clone Repository", status: "success" as const, duration: "5s" },
-    { name: "Build Application", status: build?.status === "building" ? "running" as const : "success" as const, duration: build?.status === "building" ? undefined : "Running" },
-    { name: "Upload Artifacts", status: "pending" as const },
-    { name: "Deploy to Edge", status: "pending" as const },
-    { name: "Assign Domains", status: "pending" as const },
+  // Fetch builds using the API
+  useEffect(() => {
+    if (projectId && buildId) {
+      const fetchBuild = async () => {
+        try {
+          // We fetch all builds because there is currently no endpoint for a single build
+          const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
+          if (response.ok) {
+            const data = await response.json();
+            const foundBuild = (data.builds || []).find((b: APIBuild) => b.id.toString() === buildId);
+            setBuild(foundBuild || null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch build:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchBuild();
+    }
+  }, [projectId, buildId, request]);
+
+  // Define the expected build steps
+  const stepsDefinitions = [
+    { key: "[1/8]", label: "Cloning repository..." },
+    { key: "[2/8]", label: "Detecting required Flutter/Dart version..." },
+    { key: "[3/8]", label: "Processing environment files..." },
+    { key: "[4/8]", label: "Skipping keystore setup" },
+    { key: "[5/8]", label: "Getting Flutter dependencies..." },
+    { key: "[6/8]", label: "Building Flutter application..." },
+    { key: "[7/8]", label: "Generating build information..." },
+    { key: "[8/8]", label: "Uploading artifacts to S3..." },
   ];
 
-  // Mock data pour les logs
-  const buildLogs = [
-    "10:42:01   -> veloce-dashboard@1.0.0 build",
-    "10:42:01   -> vite build",
-    "10:42:02   vite v4.0.0 building for production...",
-    "10:42:03   transforming...",
-    "10:42:05   ✓ 156 modules transformed.",
-    "10:42:05   rendering chunks...",
-    "10:42:06   computing gzip size...",
-    "10:42:06   dist/index.html                    0.45 kB │ gzip:  0.29 kB",
-    "10:42:06   dist/assets/index-a3b4c5.css      4.32 kB │ gzip:  1.21 kB",
-    "10:42:06   dist/assets/index-5b8e7f.js     143.21 kB │ gzip: 46.12 kB",
-    "10:42:07   (!) Some chunks are larger than 500 kBs after minification.",
-    "10:42:07   - Using dynamic import() to code-split the application",
-    "10:42:07   - Use build.rollupOptions.output.manualChunks to improve chunking",
-    "10:42:08   ✓ Built in 6.4s",
-    "10:42:09   Running Post-processing...",
-    "10:42:10   Optimizing images...",
-    "10:42:12   Generating static maps 🗺",
-  ];
+  // Dynamic build steps based on logs
+  const buildSteps = stepsDefinitions.map((step) => {
+    const isPresent = logs.some((log) => log.includes(step.key));
+    return {
+      name: `${step.key} ${step.label}`,
+      status: isPresent ? ("success" as const) : ("pending" as const),
+    };
+  });
+
+  // Fetch logs logic
+  useEffect(() => {
+    if (!build) return;
+
+    let isMounted = true;
+    let pollInterval: NodeJS.Timeout;
+
+    const fetchLogs = async () => {
+      try {
+        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setLogs(data.logs || []);
+            
+            // If building or running, poll for updates
+            const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
+            if (isRunning) {
+              let currentLastLine = (data.logs || []).length;
+              
+              pollInterval = setInterval(async () => {
+                if (!isMounted) return;
+                try {
+                  const syncRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?last_line=${currentLastLine}`);
+                  if (syncRes.ok) {
+                    const syncData = await syncRes.json();
+                    
+                    if (syncData.logs && syncData.logs.length > 0) {
+                      setLogs(prev => [...prev, ...syncData.logs]);
+                    }
+                    
+                    if (typeof syncData.last_line === 'number') {
+                      currentLastLine = syncData.last_line;
+                    } else {
+                      currentLastLine += (syncData.logs?.length || 0);
+                    }
+
+                    // Update build status and duration if changed
+                    if (syncData.status || typeof syncData.elapsed_time === 'number') {
+                       setBuild(prev => {
+                          if (!prev) return null;
+                          const updated = { ...prev };
+                          let changed = false;
+
+                          if (syncData.status && syncData.status !== prev.status) {
+                             updated.status = syncData.status;
+                             changed = true;
+                          }
+                          if (typeof syncData.elapsed_time === 'number' && syncData.elapsed_time !== prev.duration) {
+                             updated.duration = syncData.elapsed_time;
+                             changed = true;
+                          }
+                          
+                          return changed ? updated : prev;
+                       });
+                    }
+                  }
+                } catch (error) {
+                  console.error("Sync error:", error);
+                }
+              }, 3000);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch logs:", error);
+      }
+    };
+
+    fetchLogs();
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [build?.id, build?.status, projectId, buildId, request]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", minHeight: "100vh" }}>
+        <SideMenu />
+        <Box component="main" sx={{ flexGrow: 1, p: 4 }}>
+          <Box>Chargement...</Box>
+        </Box>
+      </Box>
+    );
+  }
 
   if (!build) {
     return (
@@ -75,12 +191,13 @@ export default function BuildDetailsPage() {
       </div>
       <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px' }}>
         <BuildDetailsHeader
-          buildId={build.id}
+          buildId={build.id.toString()}
           status={build.status}
-          commit={build.description.split(" ")[1] || "abc123"}
+          commit="HEAD"
           branch="main"
-          message={build.description}
-          startTime={build.startTime}
+          message={`Build #${build.id}`}
+          startTime={format(new Date(build.created_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+          duration={build.duration}
         />
 
         <Box
@@ -93,8 +210,8 @@ export default function BuildDetailsPage() {
           <Box sx={{ height: '100%' }}>
             <BuildSteps steps={buildSteps} />
           </Box>
-          <Box sx={{ height: '100%' }}>
-            <BuildLog logs={buildLogs} />
+          <Box sx={{ height: '100%', maxHeight: '450px' }}>
+            <BuildLog logs={logs} />
           </Box>
         </Box>
       </Box>

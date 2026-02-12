@@ -10,8 +10,6 @@ import {
   Box,
   Typography,
   TextField,
-  Checkbox,
-  FormControlLabel,
   ToggleButtonGroup,
   ToggleButton,
   Stack,
@@ -30,7 +28,6 @@ interface BuildConfig {
   baseDirectory: string;
   platform: string;
   gitRef: string;
-  autoSubmit: boolean;
 }
 
 const StartBuildModal: React.FC<StartBuildModalProps> = ({
@@ -42,17 +39,16 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
   const theme = useTheme();
   const [environment, setEnvironment] = useState("DEFAULT");
   const [baseDirectory, setBaseDirectory] = useState("/");
-  const [platform, setPlatform] = useState("ALL");
+  const [flutterChannel, setFlutterChannel] = useState("STABLE");
+  const [buildTarget, setBuildTarget] = useState("APK");
   const [gitRef, setGitRef] = useState("main");
-  const [autoSubmit, setAutoSubmit] = useState(false);
 
   const handleStartBuild = () => {
     onStartBuild({
       environment,
       baseDirectory,
-      platform,
+      platform: buildTarget,
       gitRef,
-      autoSubmit,
     });
     onClose();
   };
@@ -109,6 +105,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
             fullWidth
             size="small"
             sx={{
+              gap: 1,
               "& .MuiToggleButton-root": {
                 textTransform: "uppercase",
                 fontWeight: 600,
@@ -134,44 +131,10 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
               },
             }}
           >
-            <ToggleButton value="DEFAULT">Default</ToggleButton>
-            <ToggleButton value="PRODUCTION">Production</ToggleButton>
-            <ToggleButton value="DEVELOPMENT">Development</ToggleButton>
-            <ToggleButton value="PREVIEW">Preview</ToggleButton>
+            <ToggleButton value="DEFAULT">Release</ToggleButton>
+            <ToggleButton value="PRODUCTION">Debug</ToggleButton>
+            <ToggleButton value="DEVELOPMENT">Profile</ToggleButton>
           </ToggleButtonGroup>
-        </Box>
-
-        {/* Auto Submit Checkbox */}
-        <Box
-          sx={{
-            padding: 1.5,
-            borderRadius: 1,
-            backgroundColor: theme.palette.action.hover,
-            border: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={autoSubmit}
-                onChange={(e) => setAutoSubmit(e.target.checked)}
-                sx={{
-                  color: theme.palette.primary.main,
-                }}
-              />
-            }
-            label={
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                Automatically submit to stores after building successfully
-              </Typography>
-            }
-            sx={{
-              "& .MuiFormControlLabel-label": {
-                fontSize: "0.875rem",
-              },
-              margin: 0,
-            }}
-          />
         </Box>
 
         {/* Build Configuration */}
@@ -192,35 +155,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
           </Typography>
 
           <Stack spacing={1.5}>
-            {/* Base Directory */}
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.5,
-                  fontWeight: 500,
-                }}
-              >
-                Base directory
-              </Typography>
-              <TextField
-                value={baseDirectory}
-                onChange={(e) => setBaseDirectory(e.target.value)}
-                fullWidth
-                size="small"
-                placeholder="/"
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1,
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Platform Selection */}
+            {/* Flutter Channel */}
             <Box>
               <Typography
                 variant="caption"
@@ -232,15 +167,15 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
                   fontWeight: 500,
                 }}
               >
-                Platform
+                Flutter Channel
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                {["ALL", "ANDROID"].map((p) => (
+                {["STABLE", "BETA", "DEV", "MASTER"].map((channel) => (
                   <Button
-                    key={p}
-                    variant={platform === p ? "contained" : "outlined"}
+                    key={channel}
+                    variant={flutterChannel === channel ? "contained" : "outlined"}
                     size="small"
-                    onClick={() => setPlatform(p)}
+                    onClick={() => setFlutterChannel(channel)}
                     sx={{
                       textTransform: "uppercase",
                       fontSize: "0.75rem",
@@ -249,22 +184,72 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
                       transition: "all 0.2s ease",
                       borderRadius: 1,
                       borderWidth: "1px",
-                      ...(platform === p
+                      ...(flutterChannel === channel
                         ? {
-                            backgroundColor: theme.palette.primary.main,
-                            borderColor: theme.palette.primary.main,
-                          }
+                          backgroundColor: theme.palette.primary.main,
+                          borderColor: theme.palette.primary.main,
+                        }
                         : {
-                            borderColor: theme.palette.divider,
-                            color: theme.palette.text.secondary,
-                            "&:hover": {
-                              borderColor: theme.palette.primary.main,
-                              backgroundColor: theme.palette.action.hover,
-                            },
-                          }),
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            borderColor: theme.palette.primary.main,
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }),
                     }}
                   >
-                    {p}
+                    {channel}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Build Target */}
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontSize: "0.75rem",
+                  color: theme.palette.text.secondary,
+                  marginBottom: 0.75,
+                  fontWeight: 500,
+                }}
+              >
+                Build Target
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                {["APK", "AAB"].map((target) => (
+                  <Button
+                    key={target}
+                    variant={buildTarget === target ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => setBuildTarget(target)}
+                    sx={{
+                      textTransform: "uppercase",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      flex: 1,
+                      transition: "all 0.2s ease",
+                      borderRadius: 1,
+                      borderWidth: "1px",
+                      ...(buildTarget === target
+                        ? {
+                          backgroundColor: theme.palette.primary.main,
+                          borderColor: theme.palette.primary.main,
+                        }
+                        : {
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            borderColor: theme.palette.primary.main,
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }),
+                    }}
+                  >
+                    {target}
                   </Button>
                 ))}
               </Box>

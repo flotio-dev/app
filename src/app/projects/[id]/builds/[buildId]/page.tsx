@@ -88,7 +88,7 @@ export default function BuildDetailsPage() {
           gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }}
           gap={3}
           alignItems="stretch"
-          sx={{ minHeight: 400 }}
+          sx={{ minHeight: "clamp(320px, 60vh, 520px)" }}
         >
           <Box sx={{ height: '100%' }}>
             <BuildSteps steps={buildSteps} />

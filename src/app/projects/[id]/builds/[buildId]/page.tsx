@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import SideMenu from "@/components/common/SideMenu";
@@ -14,6 +14,15 @@ export default function BuildDetailsPage() {
   const buildId = params.buildId as string;
   const projectId = params.id as string;
 
+  // Empêche le scroll horizontal global
+  useEffect(() => {
+    document.body.style.overflowX = 'hidden';
+    document.documentElement.style.overflowX = 'hidden';
+    return () => {
+      document.body.style.overflowX = '';
+      document.documentElement.style.overflowX = '';
+    };
+  }, []);
   // Trouver le build correspondant
   const build = mockBuildsData.find((b) => b.id === buildId);
 
@@ -60,9 +69,11 @@ export default function BuildDetailsPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <SideMenu />
-      <Box component="main" sx={{ flexGrow: 1, p: 4 }}>
+    <div className="min-h-screen flex">
+      <div className="fixed left-0 top-0 h-screen w-64 z-30">
+        <SideMenu />
+      </div>
+      <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px' }}>
         <BuildDetailsHeader
           buildId={build.id}
           status={build.status}
@@ -72,11 +83,21 @@ export default function BuildDetailsPage() {
           startTime={build.startTime}
         />
 
-        <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }} gap={3}>
-          <BuildSteps steps={buildSteps} />
-          <BuildLog logs={buildLogs} />
+        <Box
+          display="grid"
+          gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }}
+          gap={3}
+          alignItems="stretch"
+          sx={{ minHeight: "clamp(320px, 60vh, 520px)" }}
+        >
+          <Box sx={{ height: '100%' }}>
+            <BuildSteps steps={buildSteps} />
+          </Box>
+          <Box sx={{ height: '100%' }}>
+            <BuildLog logs={buildLogs} />
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </div>
   );
 }

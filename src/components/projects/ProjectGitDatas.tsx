@@ -3,29 +3,72 @@
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import { Typography, Paper, TextField, Grid, Divider, Button } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useParams } from 'next/navigation';
+import { useApi } from '@/hooks/useApi';
 import GitHubIcon from '@mui/icons-material/GitHub';
 
-interface ProjectGitDatasProps {
-  gitName: string;
-  repoUrl: string;
-  branch: string;
-}
-
-const ProjectGitDatas: React.FC<ProjectGitDatasProps> = ({ gitName, repoUrl, branch }) => {
+const ProjectGitDatas: React.FC = () => {
   const theme = useTheme();
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({ gitName, repoUrl, branch });
+  const [form, setForm] = useState({ gitUsername: '', repoUrl: '', gitToken: '' });
+  const [project, setProject] = useState<any>(null);
+  const params = useParams();
+  const { request } = useApi();
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!params.id) return;
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${params.id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProject(data.project);
+        setForm({
+          gitUsername: data.project.git_username || '',
+          repoUrl: data.project.git_repo || '',
+          gitToken: data.project.git_token || '',
+        });
+      }
+    };
+    fetchProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
   const handleChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    setEditMode(false);
-    // Ici, on pourrait appeler une API ou un callback pour sauvegarder les modifications
+  // Removed duplicate handleSave
+  const handleSave = async () => {
+    if (!project) return;
+    try {
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          build_folder: project.build_folder,
+          flutter_version: project.flutter_version,
+          git_repo: form.repoUrl,
+          git_token: form.gitToken,
+          git_username: form.gitUsername,
+          name: project.name,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProject(data.project || { ...project, ...form });
+        setEditMode(false);
+      }
+    } catch (e) {
+      setEditMode(false);
+    }
   };
 
+  if (!project) return null;
   return (
     <Box px={6} py={3}>
       <Paper elevation={0} sx={{ borderRadius: 3, background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, maxWidth: 900, mx: 'auto', mb: 4, position: 'relative' }}>
@@ -37,15 +80,15 @@ const ProjectGitDatas: React.FC<ProjectGitDatasProps> = ({ gitName, repoUrl, bra
           <Box display="flex" flexDirection="column" gap={2}>
             <Box display="flex" alignItems="center" gap={2}>
               <Typography variant="body2" fontWeight={600} color={theme.palette.text.secondary} minWidth={120}>
-                Git Name
+                Git Username
               </Typography>
               <TextField
                 fullWidth
                 size="small"
-                value={editMode ? form.gitName : gitName}
+                value={editMode ? form.gitUsername : project.git_username}
                 InputProps={{ readOnly: !editMode }}
                 sx={{ input: { color: theme.palette.text.primary } }}
-                onChange={e => handleChange('gitName', e.target.value)}
+                onChange={e => handleChange('gitUsername', e.target.value)}
               />
             </Box>
             <Box display="flex" alignItems="center" gap={2}>
@@ -55,23 +98,10 @@ const ProjectGitDatas: React.FC<ProjectGitDatasProps> = ({ gitName, repoUrl, bra
               <TextField
                 fullWidth
                 size="small"
-                value={editMode ? form.repoUrl : repoUrl}
+                value={editMode ? form.repoUrl : project.git_repo}
                 InputProps={{ readOnly: !editMode }}
                 sx={{ input: { color: theme.palette.text.primary } }}
                 onChange={e => handleChange('repoUrl', e.target.value)}
-              />
-            </Box>
-            <Box display="flex" alignItems="center" gap={2}>
-              <Typography variant="body2" fontWeight={600} color={theme.palette.text.secondary} minWidth={120}>
-                Branch
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={editMode ? form.branch : branch}
-                InputProps={{ readOnly: !editMode }}
-                sx={{ input: { color: theme.palette.text.primary } }}
-                onChange={e => handleChange('branch', e.target.value)}
               />
             </Box>
           </Box>
@@ -79,7 +109,7 @@ const ProjectGitDatas: React.FC<ProjectGitDatasProps> = ({ gitName, repoUrl, bra
         <Divider sx={{ borderColor: theme.palette.divider }} />
         <Box px={4} py={2} display="flex" alignItems="center" justifyContent="space-between">
           <Typography variant="caption" color={theme.palette.text.secondary}>
-            Last updated now
+            Last updated {project.updated_at ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true }) : ''}
           </Typography>
         </Box>
         <Box position="absolute" bottom={12} right={24}>

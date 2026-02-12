@@ -18,12 +18,8 @@ import PublishIcon from "@mui/icons-material/Publish";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 
-interface ProjectsHeaderProps {
-	search: string;
-	onSearchChange: (value: string) => void;
-}
 
-const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange }) => {
+const ProjectsHeader: React.FC = () => {
 	const theme = useTheme();
 	const router = useRouter();
 	return (
@@ -34,7 +30,7 @@ const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange 
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>
-				
+
 				<Button
 					color="inherit"
 					sx={{ minWidth: 40, p: 1, borderRadius: 1 }}

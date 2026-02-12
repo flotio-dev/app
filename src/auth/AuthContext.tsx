@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(me)
     } catch (e) {
       window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/login`
-      console.warn("Not authenticated", e)
+      console.log("Not authenticated", e)
     } finally {
       setLoading(false)
     }

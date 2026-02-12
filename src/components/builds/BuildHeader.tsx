@@ -43,12 +43,24 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
     fetchProject();
   }, [projectId, request]);
 
-  const handleStartBuild = (config: any) => {
-    console.log(
-      `Build started${projectId ? ` for project ${projectId}` : ""}:`,
-      config
-    );
-    // TODO: Add API call to start build
+  const handleStartBuild = async () => {
+    if (!projectId) return;
+    try {
+      await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Platform: "android",
+          BuildMode: "release",
+          BuildTarget: "apk",
+          FlutterChannel: "stable",
+          GitBranch: "main",
+        }),
+      });
+      // Optionally: show success message or refresh builds
+    } catch (e) {
+      // Optionally: handle error
+    }
     setOpenBuildModal(false);
   };
 
@@ -80,14 +92,14 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
             color="primary"
             size="medium"
             startIcon={<PlayArrowIcon />}
-            onClick={() => setOpenBuildModal(true)}
+            onClick={handleStartBuild}
             sx={{
               textTransform: "uppercase",
               fontWeight: 600,
               letterSpacing: "0.5px",
             }}
           >
-            Lancer un build
+            Start build
           </Button>
         </header>
         <div style={{ flex: 1, padding: 24 }}>{children}</div>

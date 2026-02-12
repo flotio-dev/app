@@ -1,21 +1,18 @@
 "use client";
-"use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
-import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import { useTheme } from "@mui/material/styles";
+import { usePathname } from "next/navigation";
 import GridViewIcon from "@mui/icons-material/GridView";
 import FolderIcon from "@mui/icons-material/Folder";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
@@ -23,6 +20,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import SettingsIcon from "@mui/icons-material/Settings";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LogoutIcon from "@mui/icons-material/Logout";
+import BuildIcon from "@mui/icons-material/Build";
 import { useAuth } from "@/auth/AuthContext";
 
 const menuItems = [
@@ -36,18 +34,41 @@ const menuItems = [
 
 function SideMenu() {
   const theme = useTheme();
+  const pathname = usePathname();
+  const { user } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const { user } = useAuth();
+
+  // Extraire l'ID du projet à partir de l'URL
+  const projectIdMatch = pathname.match(/\/projects\/([^/]+)/);
+  const projectId = projectIdMatch ? projectIdMatch[1] : null;
+  const isProjectPath = Boolean(projectId);
+
+  // Vérifier si un lien est actif
+  const isActiveLink = (href: string) => {
+    if (href === "/dashboard") {
+      return pathname === "/" || pathname === "/dashboard";
+    }
+    return pathname.startsWith(href);
+  };
+
+  // Obtenir les initiales de l'utilisateur
+  const getInitials = (email?: string) => {
+    if (!email) return "U";
+    return email.charAt(0).toUpperCase();
+  };
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
+
   const handleLogout = () => {
-    alert("Déconnexion !");
+    // TODO: Implémenter la vraie logique de déconnexion
+    console.log("Déconnexion de l'utilisateur");
     handleClose();
   };
 
@@ -117,44 +138,86 @@ function SideMenu() {
             Flotio
           </Typography>
         </Box>
-        <List sx={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
-          {menuItems.map((item) => (
-            <ListItem
-              key={item.label}
-              disablePadding
-              sx={{ mb: 0.5, borderRadius: 2 }}
-            >
-              <Button
-                href={item.href}
-                startIcon={item.icon}
-                fullWidth
-                sx={{
-                  justifyContent: 'flex-start',
-                  color: theme.palette.text.primary,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  px: 2,
-                  py: 1.2,
-                  '&:hover': {
-                    background: theme.palette.action.hover,
-                    color: theme.palette.primary.main,
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            </ListItem>
-          ))}
+        <List>
+          {menuItems.map((item) => {
+            const isActive = isActiveLink(item.href);
+            return (
+              <Box key={item.label}>
+                <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 2 }}>
+                  <Button
+                    href={item.href}
+                    startIcon={item.icon}
+                    fullWidth
+                    sx={{
+                      justifyContent: 'flex-start',
+                      color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                      background: isActive ? theme.palette.action.selected : 'transparent',
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: isActive ? 600 : 500,
+                      px: 2,
+                      py: 1.2,
+                      '&:hover': {
+                        background: theme.palette.action.hover,
+                        color: theme.palette.primary.main,
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                </ListItem>
+
+                {/* Sous-menu Builds pour Projects */}
+                {item.label === "Projects" && isProjectPath && (
+                  <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 2, ml: 3 }}>
+                    <Button
+                      href={`/projects/${projectId}/builds`}
+                      startIcon={<BuildIcon />}
+                      fullWidth
+                      sx={{
+                        justifyContent: 'flex-start',
+                        color: pathname.includes('/builds') 
+                          ? theme.palette.primary.main 
+                          : theme.palette.text.primary,
+                        background: pathname.includes('/builds') 
+                          ? theme.palette.action.selected 
+                          : 'transparent',
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: pathname.includes('/builds') ? 600 : 500,
+                        fontSize: '0.95rem',
+                        px: 2,
+                        py: 1,
+                        '&:hover': {
+                          background: theme.palette.action.hover,
+                          color: theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      Builds
+                    </Button>
+                  </ListItem>
+                )}
+              </Box>
+            );
+          })}
         </List>
       </Box>
       <Box>
         <Divider sx={{ my: 3 }} />
         <Box display="flex" alignItems="center" gap={2}>
           <Avatar
-            sx={{ width: 36, height: 36, border: `2px solid ${theme.palette.primary.main}`, fontWeight: 700, fontSize: 20, bgcolor: theme.palette.primary.main, color: theme.palette.getContrastText(theme.palette.primary.main) }}
+            sx={{
+              width: 36,
+              height: 36,
+              border: `2px solid ${theme.palette.primary.main}`,
+              fontWeight: 700,
+              fontSize: 20,
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+            }}
           >
-            A
+            {getInitials(user?.email)}
           </Avatar>
           <Typography color={theme.palette.text.primary} fontWeight={500}>
             {user?.email || "Utilisateur"}

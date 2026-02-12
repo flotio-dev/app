@@ -1,8 +1,10 @@
 
 'use client';
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 
-import React from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useApi } from '@/hooks/useApi';
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -26,11 +28,36 @@ interface ProjectsHeaderProps {
 const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange }) => {
 	const theme = useTheme();
 	const router = useRouter();
+	const params = useParams();
+	const { request } = useApi();
+	const [projectName, setProjectName] = useState<string>("");
+
+	useEffect(() => {
+		const fetchProject = async () => {
+			const projectId = params.id;
+			if (!projectId) return;
+			try {
+				const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`, {
+					method: 'GET',
+					headers: { 'Content-Type': 'application/json' },
+				});
+				if (!res.ok) throw new Error('Failed to fetch project');
+				const data = await res.json();
+				setProjectName(data.project?.name || '');
+			} catch {
+				setProjectName('');
+			}
+		};
+		fetchProject();
+	}, [params.id, request]);
+
 	return (
 		<Box display="flex" alignItems="center" justifyContent="space-between" width="100%" height={64}>
 			<Box display="flex" alignItems="center" gap={2}>
-				<Typography variant="h6" fontWeight={700} color={theme.palette.text.primary}>
-					Projects
+				<Typography variant="h6" fontWeight={700} color={theme.palette.text.primary} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+					{projectName}
+					<ArrowForwardIosIcon sx={{ fontSize: 20, verticalAlign: 'middle' }} />
+					Overview
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>

@@ -1,20 +1,16 @@
 "use client";
-"use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
-import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import { useTheme } from "@mui/material/styles";
 import GridViewIcon from "@mui/icons-material/GridView";
 import FolderIcon from "@mui/icons-material/Folder";

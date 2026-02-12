@@ -20,7 +20,7 @@ const BuildLog: React.FC<BuildLogProps> = ({ logs }) => {
         p: 0,
         border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
-        height: "600px",
+        height: "450px",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",

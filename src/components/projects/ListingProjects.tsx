@@ -18,7 +18,7 @@ const mockProjects = [
 		icon: 'M',
 	},
 	{
-		id: 2,
+		id: 123,
 		name: 'website-main',
 		repoUrl: 'gitlab.com/company/website',
 		lastDeployment: '23 min ago',

@@ -1,7 +1,7 @@
 "use client";
 "use client";
 import { useTheme } from '@mui/material/styles';
-import React, { useState } from 'react';
+import { useState } from 'react';
 const mockProjects = [
 	{
 		id: 1,
@@ -92,9 +92,6 @@ export default function ListingProjects() {
 
 	const handleMenuOpen = (id: number) => {
 		setOpenMenuId(id);
-	};
-	const handleMenuClose = () => {
-		setOpenMenuId(null);
 	};
 	const handleDelete = (id: number) => {
 		setProjects(projects.filter(p => p.id !== id));

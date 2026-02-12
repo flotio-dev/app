@@ -52,7 +52,7 @@ const OverviewCards: React.FC = () => {
           <Typography variant="h4" fontWeight={700} color={theme.palette.text.primary}>
             {card.value}
           </Typography>
-          <Typography variant="caption" color={(theme.palette as any)[card.changeColor.split('.')[0]][card.changeColor.split('.')[1]]}>
+          <Typography variant="caption" color={card.changeColor}>
             {card.change}
           </Typography>
         </Paper>

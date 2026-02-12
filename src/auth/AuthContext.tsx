@@ -1,78 +1,45 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react"
+import React, { createContext, useContext, useState } from "react";
 
-type User = {
-  id: string
-  email: string
-  username: string
-}
+type User = { id: string; email: string; username: string };
 
 type AuthContextType = {
-  user: User | null
-  accessToken: string | null
-  loading: boolean
-  logout: () => Promise<void>
-}
+  user: User | null;
+  accessToken: string | null;
+  setUserAndToken: (user: User, token: string) => void;
+  clearAuth: () => void;
+};
 
-const AuthContext = createContext<AuthContextType>(null!)
+const AuthContext = createContext<AuthContextType>(null!);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(
+    typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null
+  );
+  const [accessToken, setAccessToken] = useState<string | null>(
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
+  );
 
-  useEffect(() => {
-    bootstrap()
-  }, [])
+  const setUserAndToken = (u: User, token: string) => {
+    setUser(u);
+    setAccessToken(token);
+    localStorage.setItem("user", JSON.stringify(u));
+    localStorage.setItem("accessToken", token);
+  };
 
-  async function bootstrap() {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-      })
-
-      if (!res.ok) throw new Error()
-
-      const data = await res.json()
-      setAccessToken(data.access_token)
-
-      const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      }).then(r => r.json())
-
-      setUser(me)
-    } catch (e) {
-      window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/login`
-      console.log("Not authenticated", e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function logout() {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    })
-    setUser(null)
-    setAccessToken(null)
-    window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/login`
-  }
+  const clearAuth = () => {
+    setUser(null);
+    setAccessToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
+  };
 
   return (
-    <AuthContext.Provider
-      value={{ user, accessToken, loading, logout }}
-    >
+    <AuthContext.Provider value={{ user, accessToken, setUserAndToken, clearAuth }}>
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => useContext(AuthContext);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useMemo } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { darkTheme, lightTheme } from "@/theme";
@@ -15,17 +15,12 @@ export const ThemeModeContext = createContext<{
 });
 
 export const ThemeModeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isHydrated, setIsHydrated] = useState(false);
   const [mode, setMode] = useLocalStorage<"light" | "dark">("theme-mode", "dark");
-  const theme = useMemo(() => (mode === "dark" ? darkTheme : lightTheme), [mode]);
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  if (!isHydrated) {
-    return null;
-  }
+  const theme = useMemo(
+    () => (mode === "dark" ? darkTheme : lightTheme),
+    [mode]
+  );
 
   return (
     <ThemeModeContext.Provider value={{ mode, setMode }}>

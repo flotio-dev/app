@@ -123,9 +123,6 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 	const handleMenuOpen = (id: number) => {
 		setOpenMenuId(id);
 	};
-	const handleMenuClose = () => {
-		setOpenMenuId(null);
-	};
 	const handleDelete = (id: number) => {
 		setProjects(projects.filter(p => p.id !== id));
 		setOpenMenuId(null);

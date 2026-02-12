@@ -6,7 +6,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
     try {
       const item = window.localStorage.getItem(key);
       return item ? (JSON.parse(item) as T) : initialValue;
-    } catch (error) {
+    } catch {
       return initialValue;
     }
   });
@@ -14,7 +14,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
   useEffect(() => {
     try {
       window.localStorage.setItem(key, JSON.stringify(storedValue));
-    } catch (error) {
+    } catch {
       // Ignore write errors
     }
   }, [key, storedValue]);

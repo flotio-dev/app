@@ -9,9 +9,9 @@ export default function ThemeSettings() {
   return (
     <section className="bg-[#181828] rounded-xl p-8 mb-8 shadow border border-[#23233a]">
       <h2 className="text-lg font-semibold text-white mb-1">Theme & appearance</h2>
-      <p className="text-sm text-gray-400 mb-6">Choisissez entre le thème clair et sombre pour l'interface de Veloce.</p>
+      <p className="text-sm text-gray-400 mb-6">{"Choisissez entre le thème clair et sombre pour l'interface de Veloce."}</p>
       <div className="mb-6">
-        <label className="block text-xs text-gray-400 mb-2">Mode d'affichage</label>
+        <label className="block text-xs text-gray-400 mb-2">{"Mode d'affichage"}</label>
         <div className="flex gap-4">
           <button
             type="button"

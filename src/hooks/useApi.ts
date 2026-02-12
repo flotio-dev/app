@@ -39,7 +39,7 @@ export function useApi() {
         res = await fetchWithToken(newToken);
       } catch {
         clearAuth();
-        window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/auth/login`;
+        window.location.href = "/auth/login";
         throw new Error("Session expired");
       }
     }

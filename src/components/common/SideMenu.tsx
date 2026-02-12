@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
@@ -22,6 +22,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LogoutIcon from "@mui/icons-material/Logout";
 import BuildIcon from "@mui/icons-material/Build";
 import { useAuth } from "@/auth/AuthContext";
+import { useApi } from '@/hooks/useApi';
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
@@ -34,6 +35,9 @@ function SideMenu() {
   const theme = useTheme();
   const pathname = usePathname();
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const { request } = useApi();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -52,7 +56,7 @@ function SideMenu() {
 
   // Obtenir les initiales de l'utilisateur
   const getInitials = (email?: string) => {
-    if (!email) return "U";
+    if (!email) return "A";
     return email.charAt(0).toUpperCase();
   };
 
@@ -64,9 +68,19 @@ function SideMenu() {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    // TODO: Implémenter la vraie logique de déconnexion
-    console.log("Déconnexion de l'utilisateur");
+  const handleLogout = async () => {
+    // TODO: Replace with actual refresh token retrieval logic
+    const refreshToken = user?.refresh_token || "string";
+    try {
+      await request(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      // Optionally: redirect or clear user state
+    } catch (e) {
+      // Optionally: handle error
+    }
     handleClose();
   };
 
@@ -228,10 +242,10 @@ function SideMenu() {
               color: theme.palette.getContrastText(theme.palette.primary.main),
             }}
           >
-            {getInitials(user?.email)}
+            {mounted ? getInitials(user?.email) : ''}
           </Avatar>
           <Typography color={theme.palette.text.primary} fontWeight={500}>
-            {user?.username || "Username"}
+            {mounted ? (user?.username || "Username") : ''}
           </Typography>
           <IconButton
             onClick={handleMenu}
@@ -258,7 +272,7 @@ function SideMenu() {
           >
             <MenuItem onClick={handleLogout} sx={{ color: theme.palette.text.primary }}>
               <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-              Se déconnecter
+              Logout
             </MenuItem>
           </Menu>
         </Box>

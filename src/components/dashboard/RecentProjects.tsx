@@ -40,7 +40,7 @@ function RecentProjects() {
       }
     };
     fetchProjects();
-  }, [request]);
+  }, []);
 
   return (
     <Paper

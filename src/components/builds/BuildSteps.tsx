@@ -56,7 +56,7 @@ const BuildSteps: React.FC<BuildStepsProps> = ({ steps }) => {
         p: 3,
         border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
-        height: "450px",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",

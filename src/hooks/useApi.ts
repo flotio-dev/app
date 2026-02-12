@@ -1,51 +1,51 @@
-import { useAuth } from "@/auth/AuthContext"
-import { access } from "fs"
+import { useAuth } from "@/auth/AuthContext";
 
 export function useApi() {
-  const { accessToken } = useAuth()
+  const { accessToken, setUserAndToken, clearAuth } = useAuth();
 
-  async function request(
-    input: RequestInfo,
-    init: RequestInit = {}
-  ) {
+  const request = async (input: RequestInfo, init: RequestInit = {}) => {
+    let token = accessToken;
 
-    console.log(accessToken);
-    let res = await fetch(input, {
-      ...init,
-      headers: {
-        ...init.headers,
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    if (res.status !== 401) return res
-
-    const refresh = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-      {
-        method: "POST",
+    const fetchWithToken = async (t: string | null) =>
+      fetch(input, {
+        ...init,
+        headers: { ...init.headers, Authorization: t ? `Bearer ${t}` : "" },
         credentials: "include",
-      }
-    )
+      });
 
-    if (!refresh.ok) {
-      window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/login`
-      console.warn("Session expired", res)
-      throw new Error("Session expired")
+    let res = await fetchWithToken(token);
+
+    if (res.status === 401) {
+      try {
+        const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (!refreshRes.ok) throw new Error("Unauthorized");
+
+        const data = await refreshRes.json();
+        const newToken = data.access_token;
+
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
+          headers: { Authorization: `Bearer ${newToken}` },
+        });
+
+        if (!meRes.ok) throw new Error("Failed to fetch user");
+        const me = await meRes.json();
+
+        setUserAndToken(me, newToken);
+
+        res = await fetchWithToken(newToken);
+      } catch {
+        clearAuth();
+        window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/auth/login`;
+        throw new Error("Session expired");
+      }
     }
 
-    const data = await refresh.json()
+    return res;
+  };
 
-    res = await fetch(input, {
-      ...init,
-      headers: {
-        ...init.headers,
-        Authorization: `Bearer ${data.access_token}`,
-      },
-    })
-
-    return res
-  }
-
-  return { request }
+  return { request };
 }

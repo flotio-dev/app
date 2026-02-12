@@ -3,8 +3,8 @@
 import PreferencesHeader from "@/components/preferences/PreferencesHeader";
 import SideMenu from "@/components/common/SideMenu";
 import ProfileSettings from "@/components/preferences/ProfileSettings";
-import LanguageSettings from "@/components/preferences/LanguageSettings";
-import ThemeSwitcher from "@/components/preferences/ThemeSwitcher";
+import GithubConnect from "@/components/preferences/GithubConnect";
+import ThemeSettings from "@/components/preferences/ThemeSettings";
 import { ThemeModeProvider } from "@/components/preferences/ThemeModeProvider";
 import { useTheme } from "@mui/material/styles";
 
@@ -22,8 +22,8 @@ export default function PreferencesPage() {
           </header>
           <div className="py-10 px-8">
             <ProfileSettings />
-            <LanguageSettings />
-            <ThemeSwitcher />
+            <GithubConnect />
+            <ThemeSettings />
           </div>
         </main>
       </div>

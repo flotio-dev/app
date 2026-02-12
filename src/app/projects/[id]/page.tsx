@@ -15,22 +15,10 @@ export default function ProjectOverviewPage() {
       </div>
       <main className="flex-1 flex flex-col min-h-screen" style={{ paddingLeft: 256 }}>
         <header className="h-16 flex items-center px-6" style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <ProjectHeader/>
+          <ProjectHeader />
         </header>
-        <ProjectDatas
-          name="marketing-dashboard"
-          url="marketing-dashboard.veloce.app"
-          github="github.com/veloce/marketing-dashboard"
-          status="Active"
-          environment="Production"
-          description=""
-          lastUpdated="2 days ago"
-        />
-        <ProjectGitDatas 
-          gitName="marketing-dashboard"
-          repoUrl="https://github.com/veloce/marketing-dashboard"
-          branch="main"
-        />
+        <ProjectDatas />
+        <ProjectGitDatas />
       </main>
     </div>
   );

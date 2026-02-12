@@ -56,7 +56,10 @@ const BuildSteps: React.FC<BuildStepsProps> = ({ steps }) => {
         p: 3,
         border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
-        height: "fit-content",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       <Typography variant="h6" fontWeight={700} mb={3}>

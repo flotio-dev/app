@@ -1,37 +1,47 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 
-const projects = [
-  {
-    name: "commerce-api-v2",
-    status: "Online",
-    description: "Main backend service for the e-commerce platform.",
-    branch: "main",
-    time: "2h ago",
-  },
-  {
-    name: "chat-websocket",
-    status: "Online",
-    description: "Real-time messaging socket server node.",
-    branch: "dev",
-    time: "5h ago",
-  },
-  {
-    name: "analytics-worker",
-    status: "Paused",
-    description: "Background job processor for analytics events.",
-    branch: "feat/scaling",
-    time: "1d ago",
-  },
-];
+import { useApi } from '@/hooks/useApi';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+
+function getStatus(project: any) {
+  // You can adjust this logic based on your API's status field
+  return project.status || 'Online';
+}
 
 function RecentProjects() {
   const theme = useTheme();
+  const { request } = useApi();
+  const [projects, setProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error('Failed to fetch projects');
+        const data = await res.json();
+        // Sort by updated_at desc and take 4 most recent
+        const sorted = (data.projects || []).sort((a: any, b: any) => {
+          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return dateB - dateA;
+        }).slice(0, 4);
+        setProjects(sorted);
+      } catch (e) {
+        setProjects([]);
+      }
+    };
+    fetchProjects();
+  }, [request]);
+
   return (
     <Paper
       elevation={1}
@@ -48,14 +58,14 @@ function RecentProjects() {
         <Typography fontWeight={600} color={theme.palette.text.primary}>
           Recent Projects
         </Typography>
-        <Link href="#" underline="hover" color={theme.palette.primary.main} fontSize={13} fontWeight={500}>
+        <Link href="/projects" underline="hover" color={theme.palette.primary.main} fontSize={13} fontWeight={500}>
           View all
         </Link>
       </Box>
       <Box display="flex" gap={2} overflow="auto" pb={1}>
         {projects.map((project) => (
           <Paper
-            key={project.name}
+            key={project.id}
             elevation={0}
             sx={{
               minWidth: 220,
@@ -75,7 +85,7 @@ function RecentProjects() {
                 height={8}
                 borderRadius={8}
                 sx={{
-                  background: project.status === "Online" ? theme.palette.success.main : theme.palette.grey[500],
+                  background: getStatus(project) === "Online" ? theme.palette.success.main : theme.palette.grey[500],
                 }}
               />
               <Typography fontWeight={500} color={theme.palette.text.primary} fontSize={15}>
@@ -83,14 +93,14 @@ function RecentProjects() {
               </Typography>
               <Box flex={1} />
               <Typography variant="caption" color={theme.palette.text.disabled}>
-                {project.time}
+                {project.updated_at ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true }) : ''}
               </Typography>
             </Box>
             <Typography variant="caption" color={theme.palette.text.secondary}>
-              {project.description}
+              {project.git_repo}
             </Typography>
             <Typography variant="caption" color={theme.palette.text.disabled}>
-              {project.branch}
+              By {project.git_username}
             </Typography>
           </Paper>
         ))}

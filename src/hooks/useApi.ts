@@ -1,4 +1,5 @@
 import { useAuth } from "@/auth/AuthContext"
+import { access } from "fs"
 
 export function useApi() {
   const { accessToken } = useAuth()
@@ -7,6 +8,8 @@ export function useApi() {
     input: RequestInfo,
     init: RequestInit = {}
   ) {
+
+    console.log(accessToken);
     let res = await fetch(input, {
       ...init,
       headers: {

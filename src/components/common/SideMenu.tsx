@@ -26,8 +26,6 @@ import { useAuth } from "@/auth/AuthContext";
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
   { label: "Projects", icon: <FolderIcon />, href: "/projects" },
-  { label: "Deployments", icon: <ShowChartIcon />, href: "/deployments" },
-  { label: "Team", icon: <GroupIcon />, href: "/team" },
   { label: "Preferences", icon: <SettingsIcon />, href: "/preferences" },
 ];
 
@@ -169,18 +167,27 @@ function SideMenu() {
 
                 {/* Sous-menu Builds pour Projects */}
                 {item.label === "Projects" && isProjectPath && (
-                  <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 2, ml: 3 }}>
+                  <ListItem
+                    disablePadding
+                    sx={{
+                      mb: 0.5,
+                      borderRadius: 2,
+                      ml: 3,
+                      overflow: 'hidden',
+                      maxWidth: 'calc(100% - 24px)', // pour éviter de dépasser le menu
+                    }}
+                  >
                     <Button
                       href={`/projects/${projectId}/builds`}
                       startIcon={<BuildIcon />}
                       fullWidth
                       sx={{
                         justifyContent: 'flex-start',
-                        color: pathname.includes('/builds') 
-                          ? theme.palette.primary.main 
+                        color: pathname.includes('/builds')
+                          ? theme.palette.primary.main
                           : theme.palette.text.primary,
-                        background: pathname.includes('/builds') 
-                          ? theme.palette.action.selected 
+                        background: pathname.includes('/builds')
+                          ? theme.palette.action.selected
                           : 'transparent',
                         borderRadius: 2,
                         textTransform: 'none',
@@ -188,6 +195,10 @@ function SideMenu() {
                         fontSize: '0.95rem',
                         px: 2,
                         py: 1,
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
                         '&:hover': {
                           background: theme.palette.action.hover,
                           color: theme.palette.primary.main,
@@ -220,7 +231,7 @@ function SideMenu() {
             {getInitials(user?.email)}
           </Avatar>
           <Typography color={theme.palette.text.primary} fontWeight={500}>
-            {user?.email || "Utilisateur"}
+            {user?.username || "Username"}
           </Typography>
           <IconButton
             onClick={handleMenu}

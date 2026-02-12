@@ -68,21 +68,6 @@ function SideMenu() {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
-    // TODO: Replace with actual refresh token retrieval logic
-    const refreshToken = user?.refresh_token || "string";
-    try {
-      await request(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      // Optionally: redirect or clear user state
-    } catch (e) {
-      // Optionally: handle error
-    }
-    handleClose();
-  };
 
   return (
     <Box
@@ -270,7 +255,7 @@ function SideMenu() {
               },
             }}
           >
-            <MenuItem onClick={handleLogout} sx={{ color: theme.palette.text.primary }}>
+            <MenuItem onClick={() => { }} sx={{ color: theme.palette.text.primary }}>
               <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
               Logout
             </MenuItem>

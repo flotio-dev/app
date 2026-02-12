@@ -7,6 +7,7 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
 RUN \
@@ -19,6 +20,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+ENV NEXT_PUBLIC_API_URL=https://api.flotio.ovh
+ENV NEXT_PUBLIC_WEBSITE_URL=https://flotio.ovh
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry

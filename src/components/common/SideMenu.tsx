@@ -12,7 +12,7 @@ import MenuItem from "@mui/material/MenuItem";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import { useTheme } from "@mui/material/styles";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import GridViewIcon from "@mui/icons-material/GridView";
 import FolderIcon from "@mui/icons-material/Folder";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
@@ -22,7 +22,6 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LogoutIcon from "@mui/icons-material/Logout";
 import BuildIcon from "@mui/icons-material/Build";
 import { useAuth } from "@/auth/AuthContext";
-import { useApi } from '@/hooks/useApi';
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
@@ -34,10 +33,10 @@ const menuItems = [
 function SideMenu() {
   const theme = useTheme();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, clearAuth } = useAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-  const { request } = useApi();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -66,6 +65,21 @@ function SideMenu() {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleClose();
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Keep client-side logout behavior even if the API call fails.
+    }
+
+    clearAuth();
+    router.replace("/auth/login");
   };
 
 
@@ -255,7 +269,7 @@ function SideMenu() {
               },
             }}
           >
-            <MenuItem onClick={() => { }} sx={{ color: theme.palette.text.primary }}>
+            <MenuItem onClick={handleLogout} sx={{ color: theme.palette.text.primary }}>
               <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
               Logout
             </MenuItem>

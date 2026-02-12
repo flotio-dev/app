@@ -2,8 +2,13 @@ import { useAuth } from "@/auth/AuthContext";
 
 export function useApi() {
   const { accessToken, setUserAndToken, clearAuth } = useAuth();
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
 
   const request = async (input: RequestInfo, init: RequestInit = {}) => {
+    if (!apiBaseUrl) {
+      throw new Error("NEXT_PUBLIC_API_URL is not configured");
+    }
+
     let token = accessToken;
 
     const fetchWithToken = async (t: string | null) =>
@@ -17,7 +22,7 @@ export function useApi() {
 
     if (res.status === 401) {
       try {
-        const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+        const refreshRes = await fetch(`${apiBaseUrl}/auth/refresh`, {
           method: "POST",
           credentials: "include",
         });
@@ -26,8 +31,7 @@ export function useApi() {
 
         const data = await refreshRes.json();
         const newToken = data.access_token;
-
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
+        const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {
           headers: { Authorization: `Bearer ${newToken}` },
         });
 

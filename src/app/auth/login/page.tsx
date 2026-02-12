@@ -1,6 +1,7 @@
 'use client';
 
 import { Box, useTheme } from '@mui/material';
+import Button from '@mui/material/Button';
 import { useRouter } from 'next/navigation';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { AuthForm } from '@/components/auth';
@@ -21,9 +22,15 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUserAndToken } = useAuth();
   const { formData, loading, handleChange, handleSubmit, error } = useAuthForm('login');
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+  const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL?.replace(/\/$/, '') || '/';
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+    if (!apiBaseUrl) {
+      throw new Error('NEXT_PUBLIC_API_URL is not configured');
+    }
+
+    const res = await fetch(`${apiBaseUrl}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -39,7 +46,7 @@ export default function LoginPage() {
       throw new Error('Missing access token');
     }
 
-    const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
+    const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {
       credentials: 'include',
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
@@ -72,6 +79,19 @@ export default function LoginPage() {
         flexDirection: 'column',
       }}
     >
+      <Button
+        href={websiteUrl}
+        sx={{
+          position: 'fixed',
+          top: 16,
+          left: 16,
+          zIndex: 2,
+          color: theme.palette.text.secondary,
+          textTransform: 'none',
+        }}
+      >
+        Back to website
+      </Button>
       <Box
         sx={{
           position: 'fixed',

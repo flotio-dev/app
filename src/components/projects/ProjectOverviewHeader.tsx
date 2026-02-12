@@ -1,6 +1,7 @@
 
 'use client';
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import Link from "next/link";
 
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -55,9 +56,13 @@ const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange 
 		<Box display="flex" alignItems="center" justifyContent="space-between" width="100%" height={64}>
 			<Box display="flex" alignItems="center" gap={2}>
 				<Typography variant="h6" fontWeight={700} color={theme.palette.text.primary} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-					{projectName}
+					<Link href="/projects" style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>
+						Projects
+					</Link>
 					<ArrowForwardIosIcon sx={{ fontSize: 20, verticalAlign: 'middle' }} />
-					Overview
+					<Link href={params.id ? `/projects/${params.id}` : '#'} style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>
+						{projectName}
+					</Link>
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>

@@ -7,6 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import Button from "@mui/material/Button";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import Typography from "@mui/material/Typography";
 import SideMenu from "@/components/common/SideMenu";
 import StartBuildModal from "@/components/builds/StartBuildModal";
 
@@ -61,13 +62,19 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
           className="h-16 flex items-center justify-between px-6"
           style={{ borderBottom: `1px solid ${theme.palette.divider}` }}
         >
-          <h1 className="text-2xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Typography variant="h6" fontWeight={700} color={theme.palette.text.primary} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Link href="/projects" style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>
+              Projects
+            </Link>
+            <ArrowForwardIosIcon sx={{ fontSize: 20, verticalAlign: 'middle' }} />
             <Link href={projectId ? `/projects/${projectId}` : '#'} style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>
               {projectName}
             </Link>
             <ArrowForwardIosIcon sx={{ fontSize: 20, verticalAlign: 'middle' }} />
-            Builds overview
-          </h1>
+            <Link href={projectId ? `/projects/${projectId}/builds` : '#'} style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>
+              Builds
+            </Link>
+          </Typography>
           <Button
             variant="contained"
             color="primary"

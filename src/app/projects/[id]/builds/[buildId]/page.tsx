@@ -69,7 +69,7 @@ export default function BuildDetailsPage() {
     { key: "[1/8]", label: "Cloning repository..." },
     { key: "[2/8]", label: "Detecting required Flutter/Dart version..." },
     { key: "[3/8]", label: "Processing environment files..." },
-    { key: "[4/8]", label: "Skipping keystore setup" },
+    { key: "[4/8]", label: "Keystore setup" },
     { key: "[5/8]", label: "Getting Flutter dependencies..." },
     { key: "[6/8]", label: "Building Flutter application..." },
     { key: "[7/8]", label: "Generating build information..." },
@@ -192,12 +192,14 @@ export default function BuildDetailsPage() {
       <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px' }}>
         <BuildDetailsHeader
           buildId={build.id.toString()}
+          projectId={projectId}
           status={build.status}
           commit="HEAD"
           branch="main"
           message={`Build #${build.id}`}
           startTime={format(new Date(build.created_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
           duration={build.duration}
+          build={build}
         />
 
         <Box

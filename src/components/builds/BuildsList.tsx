@@ -7,9 +7,23 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogActions from "@mui/material/DialogActions";
+import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useApi } from "@/hooks/useApi";
+import { format, formatDuration, intervalToDuration } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface APIBuild {
   apk_url: string;
@@ -64,6 +78,10 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const [builds, setBuilds] = useState<APIBuild[]>([]);
   const loadedProjectIdRef = useRef<string | null>(null);
   const fetchingProjectIdRef = useRef<string | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedBuild, setSelectedBuild] = useState<APIBuild | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!projectId) {
@@ -110,6 +128,92 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
       }
     };
   }, [projectId, request]);
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>, build: APIBuild) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedBuild(build);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedBuild(null);
+  };
+
+  const handleDownload = async () => {
+    if (!selectedBuild || !projectId) {
+      handleMenuClose();
+      return;
+    }
+
+    try {
+      const response = await request(
+        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${selectedBuild.id}/download`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.download_url) {
+          window.open(data.download_url, "_blank");
+        } else {
+          alert("Lien de téléchargement non trouvé.");
+        }
+      } else {
+        console.error("Failed to fetch download URL");
+        alert("Erreur lors de la récupération du lien de téléchargement.");
+      }
+    } catch (error) {
+      console.error("Error downloading build:", error);
+      alert("Erreur lors de la demande de téléchargement.");
+    } finally {
+      handleMenuClose();
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+    // Keep selectedBuild set for the dialog
+    setAnchorEl(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedBuild || !projectId) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await request(
+        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${selectedBuild.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Delete response:", data);
+        setBuilds((prev) => prev.filter((b) => b.id !== selectedBuild.id));
+        setDeleteDialogOpen(false);
+        setSelectedBuild(null);
+      } else {
+        const errorText = await response.text();
+        console.error("Failed to delete build:", errorText);
+        alert(`Erreur lors de la suppression du build: ${errorText}`);
+      }
+    } catch (error) {
+      console.error("Error deleting build:", error);
+      alert("Erreur lors de la suppression du build");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setSelectedBuild(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -193,10 +297,10 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                     paddingLeft: 20,
                   }}
                 >
-                  {new Date(build.created_at).toLocaleString()}
+                  {format(new Date(build.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
                 </Typography>
 
-                {/* End Time / Updated */}
+                {/* Duration */}
                 <Typography
                   variant="body2"
                   sx={{
@@ -205,7 +309,7 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                     paddingLeft: 5,
                   }}
                 >
-                  {build.updated_at ? new Date(build.updated_at).toLocaleString() : '-'}
+                  {build.duration ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr }) : '-'}
                 </Typography>
 
                 {/* Description / Platform */}
@@ -227,6 +331,7 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                 <Box sx={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
                   <IconButton
                     size="small"
+                    onClick={(e) => handleMenuClick(e, build)}
                     sx={{
                       color: theme.palette.text.secondary,
                       '&:hover': { background: theme.palette.action.hover },
@@ -240,6 +345,63 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
           })
         )}
       </Box>
+
+      {/* Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        onClick={(e) => e.stopPropagation()}
+        PaperProps={{
+          elevation: 3,
+          sx: { minWidth: 150 },
+        }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        {selectedBuild?.status.toLowerCase() === "success" && selectedBuild.apk_url && (
+            <MenuItem onClick={handleDownload} sx={{ color: theme.palette.text.primary }}>
+              <ListItemIcon>
+                <DownloadIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              <ListItemText>Download APK</ListItemText>
+            </MenuItem>
+        )}
+        <MenuItem onClick={handleDeleteClick} sx={{ color: theme.palette.error.main }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>Delete Build</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to permanently delete Build #{selectedBuild?.id}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained" 
+            autoFocus 
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

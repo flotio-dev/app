@@ -216,15 +216,18 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status) {
       case "success":
         return { bg: "#d1fae5", text: "#047857", label: "Succès" };
       case "failed":
         return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
       case "building":
-      case "pending":
       case "running":
         return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
+      case "waiting":
+        return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
+      case "pending":
+        return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
       default:
         return { bg: "#f3f4f6", text: "#374151", label: "Inconnu" };
     }

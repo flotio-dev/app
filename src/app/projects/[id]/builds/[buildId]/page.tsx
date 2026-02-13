@@ -23,12 +23,19 @@ interface APIBuild {
   updated_at: string;
 }
 
+interface APIProject {
+  id: number;
+  name: string;
+  git_repo?: string;
+}
+
 export default function BuildDetailsPage() {
   const params = useParams();
   const buildId = params.buildId as string;
   const projectId = params.id as string;
   const { request } = useApi();
   const [build, setBuild] = useState<APIBuild | null>(null);
+  const [project, setProject] = useState<APIProject | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +48,28 @@ export default function BuildDetailsPage() {
       document.documentElement.style.overflowX = '';
     };
   }, []);
+
+  // Fetch project details
+  useEffect(() => {
+    if (projectId) {
+      const fetchProject = async () => {
+        try {
+          // Attempt to fetch specific project details
+          // Depending on API, this might be /project/{id} or filtered from list
+          const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`);
+          if (response.ok) {
+            const data = await response.json();
+            // Handle different possible response structures
+            const projectData = data.project || data.data?.project || data;
+            setProject(projectData);
+          }
+        } catch (error) {
+          console.error("Failed to fetch project:", error);
+        }
+      };
+      fetchProject();
+    }
+  }, [projectId, request]);
 
   // Fetch builds using the API
   useEffect(() => {
@@ -192,14 +221,14 @@ export default function BuildDetailsPage() {
       <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px' }}>
         <BuildDetailsHeader
           buildId={build.id.toString()}
-          projectId={projectId}
           status={build.status}
           commit="HEAD"
           branch="main"
           message={`Build #${build.id}`}
           startTime={format(new Date(build.created_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
           duration={build.duration}
-          build={build}
+          repoUrl={project?.git_repo}
+          apkUrl={build.apk_url}
         />
 
         <Box

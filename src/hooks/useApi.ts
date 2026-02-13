@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useAuth } from "@/auth/AuthContext";
 
 type RefreshResponse = {
@@ -9,7 +10,7 @@ export function useApi() {
   const { accessToken, setUserAndToken, clearAuth } = useAuth();
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
 
-  const request = async (input: RequestInfo, init: RequestInit = {}) => {
+  const request = useCallback(async (input: RequestInfo, init: RequestInit = {}) => {
     if (!apiBaseUrl) {
       throw new Error("NEXT_PUBLIC_API_URL is not configured");
     }
@@ -60,13 +61,18 @@ export function useApi() {
         res = await fetchWithToken(newToken);
       } catch {
         clearAuth();
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+          // Ignore logout failures and continue redirect.
+        }
         window.location.href = "/auth/login";
         throw new Error("Session expired");
       }
     }
 
     return res;
-  };
+  }, [accessToken, apiBaseUrl, clearAuth, setUserAndToken]);
 
   return { request };
 }

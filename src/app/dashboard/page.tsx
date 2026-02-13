@@ -3,6 +3,7 @@
 import React from "react";
 import SideMenu from "@/components/common/SideMenu";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { DashboardDataProvider } from "@/components/dashboard/DashboardDataProvider";
 import OverviewCards from "@/components/dashboard/OverviewCards";
 import { DeploymentsChart } from "@/components/dashboard/DeploymentsChart";
 import RecentProjects from "@/components/dashboard/RecentProjects";
@@ -20,20 +21,22 @@ export default function DashboardPage() {
         <header className="h-16 flex items-center px-6" style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
           <DashboardHeader />
         </header>
-        <div style={{ flex: 1, padding: 24 }}>
-          <div className="mb-8">
-            <OverviewCards />
+        <DashboardDataProvider>
+          <div style={{ flex: 1, padding: 24 }}>
+            <div className="mb-8">
+              <OverviewCards />
+            </div>
+            <div className="mb-8">
+              <DeploymentsChart />
+            </div>
+            <div className="mb-8">
+              <RecentProjects />
+            </div>
+            <div>
+              <LatestActivity />
+            </div>
           </div>
-          <div className="mb-8">
-            <DeploymentsChart />
-          </div>
-          <div className="mb-8">
-            <RecentProjects />
-          </div>
-          <div>
-            <LatestActivity />
-          </div>
-        </div>
+        </DashboardDataProvider>
       </main>
     </div>
   );

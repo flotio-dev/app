@@ -5,11 +5,11 @@ import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import SideMenu from "@/components/common/SideMenu";
 import BuildDetailsHeader from "@/components/builds/BuildDetailsHeader";
-import BuildSteps from "@/components/builds/BuildSteps";
-import BuildLog from "@/components/builds/BuildLog";
+import BuildStepsAndLogs from "@/components/builds/BuildStepsAndLogs";
 import { useApi } from "@/hooks/useApi";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { stripAnsi } from "@/lib/ansiParser";
 
 interface APIBuild {
   apk_url: string;
@@ -38,6 +38,14 @@ export default function BuildDetailsPage() {
   const [project, setProject] = useState<APIProject | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  // Calculate elapsed time from build start date
+  const calculateElapsedTime = (createdAt: string): number => {
+    const startTime = new Date(createdAt).getTime();
+    const currentTime = new Date().getTime();
+    return Math.floor((currentTime - startTime) / 1000);
+  };
 
   // Empêche le scroll horizontal global
   useEffect(() => {
@@ -69,7 +77,7 @@ export default function BuildDetailsPage() {
       };
       fetchProject();
     }
-  }, [projectId, request]);
+  }, [projectId]);
 
   // Fetch builds using the API
   useEffect(() => {
@@ -81,7 +89,13 @@ export default function BuildDetailsPage() {
           if (response.ok) {
             const data = await response.json();
             const foundBuild = (data.builds || []).find((b: APIBuild) => b.id.toString() === buildId);
-            setBuild(foundBuild || null);
+            if (foundBuild) {
+              setBuild(foundBuild);
+              // Initialize elapsed time from build start date
+              setElapsedTime(calculateElapsedTime(foundBuild.created_at));
+            } else {
+              setBuild(null);
+            }
           }
         } catch (error) {
           console.error("Failed to fetch build:", error);
@@ -91,28 +105,86 @@ export default function BuildDetailsPage() {
       };
       fetchBuild();
     }
-  }, [projectId, buildId, request]);
+  }, [projectId, buildId]);
 
-  // Define the expected build steps
-  const stepsDefinitions = [
-    { key: "[1/8]", label: "Cloning repository..." },
-    { key: "[2/8]", label: "Detecting required Flutter/Dart version..." },
-    { key: "[3/8]", label: "Processing environment files..." },
-    { key: "[4/8]", label: "Keystore setup" },
-    { key: "[5/8]", label: "Getting Flutter dependencies..." },
-    { key: "[6/8]", label: "Building Flutter application..." },
-    { key: "[7/8]", label: "Generating build information..." },
-    { key: "[8/8]", label: "Uploading artifacts to S3..." },
-  ];
+  // Dynamically extract build steps from logs
+  const extractStepsFromLogs = () => {
+    const detectedSteps = new Map<string, string>();
+
+    // Parse logs to find step markers
+    logs.forEach((log) => {
+      const plainLog = stripAnsi(log);
+      // Match lines that start with [N/M]
+      const stepMatch = plainLog.match(/^\[(\d+\/\d+)\]\s+(.+)$/);
+      if (stepMatch) {
+        const [, stepKey, label] = stepMatch;
+        detectedSteps.set(`[${stepKey}]`, label.trim());
+      }
+    });
+
+    // Fallback step definitions
+    const defaultSteps = [
+      { key: "[1/8]", label: "Cloning repository..." },
+      { key: "[2/8]", label: "Detecting required Flutter/Dart version..." },
+      { key: "[3/8]", label: "Processing environment files..." },
+      { key: "[4/8]", label: "Keystore setup" },
+      { key: "[5/8]", label: "Getting Flutter dependencies..." },
+      { key: "[6/8]", label: "Building Flutter application..." },
+      { key: "[7/8]", label: "Generating build information..." },
+      { key: "[8/8]", label: "Uploading artifacts to S3..." },
+    ];
+
+    // Build the final step list
+    const buildSteps = defaultSteps.map((step) => {
+      const detected = detectedSteps.has(step.key);
+      const detectLabel = detected ? detectedSteps.get(step.key)! : step.label;
+
+      // Determine status
+      let status: "pending" | "running" | "success" | "failed" = "pending";
+
+      if (detected) {
+        // Check for error in any log line containing this step
+        const logsWithStep = logs.filter((log) =>
+          stripAnsi(log).includes(step.key)
+        );
+
+        const hasError = logsWithStep.some((log) => {
+          const plainLog = stripAnsi(log);
+          return (
+            plainLog.toLowerCase().includes("error") ||
+            plainLog.includes("✗") ||
+            plainLog.toLowerCase().includes("failed")
+          );
+        });
+
+        if (hasError) {
+          status = "failed";
+        } else {
+          // Check if this is the last detected step and build is still running
+          const lastDetectedStepKey = Array.from(detectedSteps.keys()).pop();
+          if (step.key === lastDetectedStepKey && build) {
+            status = ["building", "running", "pending"].includes(
+              build.status.toLowerCase()
+            )
+              ? "running"
+              : "success";
+          } else {
+            status = "success";
+          }
+        }
+      }
+
+      return {
+        name: `${step.key} ${detectLabel}`,
+        status,
+      };
+    });
+
+    return buildSteps;
+  };
 
   // Dynamic build steps based on logs
-  const buildSteps = stepsDefinitions.map((step) => {
-    const isPresent = logs.some((log) => log.includes(step.key));
-    return {
-      name: `${step.key} ${step.label}`,
-      status: isPresent ? ("success" as const) : ("pending" as const),
-    };
-  });
+  const buildSteps = extractStepsFromLogs();
 
   // Fetch logs logic
   useEffect(() => {
@@ -120,6 +192,10 @@ export default function BuildDetailsPage() {
 
     let isMounted = true;
     let pollInterval: NodeJS.Timeout;
+    let timerInterval: NodeJS.Timeout;
+
+    // Generate a unique connection ID for this session
+    const connectionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const fetchLogs = async () => {
       try {
@@ -128,51 +204,43 @@ export default function BuildDetailsPage() {
           const data = await res.json();
           if (isMounted) {
             setLogs(data.logs || []);
-            
+
             // If building or running, poll for updates
             const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
             if (isRunning) {
               let currentLastLine = (data.logs || []).length;
-              
+
               pollInterval = setInterval(async () => {
                 if (!isMounted) return;
                 try {
-                  const syncRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?last_line=${currentLastLine}`);
+                  const syncRes = await request(
+                    `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?lastLine=${currentLastLine}&connectionId=${connectionId}`
+                  );
                   if (syncRes.ok) {
                     const syncData = await syncRes.json();
-                    
+
                     if (syncData.logs && syncData.logs.length > 0) {
                       setLogs(prev => [...prev, ...syncData.logs]);
                     }
-                    
+
                     if (typeof syncData.last_line === 'number') {
                       currentLastLine = syncData.last_line;
                     } else {
                       currentLastLine += (syncData.logs?.length || 0);
                     }
 
-                    // Update build status and duration if changed
-                    if (syncData.status || typeof syncData.elapsed_time === 'number') {
-                       setBuild(prev => {
-                          if (!prev) return null;
-                          const updated = { ...prev };
-                          let changed = false;
+                    // Update build status from sync response
+                    if (syncData.status && isMounted) {
+                      setBuild(prev => prev ? { ...prev, status: syncData.status } : null);
+                    }
 
-                          if (syncData.status && syncData.status !== prev.status) {
-                             updated.status = syncData.status;
-                             changed = true;
-                          }
-                          if (typeof syncData.elapsed_time === 'number' && syncData.elapsed_time !== prev.duration) {
-                             updated.duration = syncData.elapsed_time;
-                             changed = true;
-                          }
-                          
-                          return changed ? updated : prev;
-                       });
+                    // Update elapsed time from sync response
+                    if (typeof syncData.elapsed_time === 'number' && isMounted) {
+                      setElapsedTime(syncData.elapsed_time);
                     }
                   }
                 } catch (error) {
-                  console.error("Sync error:", error);
+                  // Reduced logging to avoid spam
                 }
               }, 3000);
             }
@@ -185,11 +253,30 @@ export default function BuildDetailsPage() {
 
     fetchLogs();
 
+    // Timer for real-time elapsed time display (only if build is running)
+    const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
+    if (isRunning) {
+      timerInterval = setInterval(() => {
+        if (isMounted) {
+          setElapsedTime(prev => prev + 1);
+        }
+      }, 1000);
+    }
+
     return () => {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
+      if (timerInterval) clearInterval(timerInterval);
     };
   }, [build?.id, build?.status, projectId, buildId, request]);
+
+  // Format time to HH:mm:ss
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   if (isLoading) {
     return (
@@ -218,7 +305,7 @@ export default function BuildDetailsPage() {
       <div className="fixed left-0 top-0 h-screen w-64 z-30">
         <SideMenu />
       </div>
-      <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 4, marginLeft: '256px', display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <BuildDetailsHeader
           buildId={build.id.toString()}
           status={build.status}
@@ -226,24 +313,15 @@ export default function BuildDetailsPage() {
           branch="main"
           message={`Build #${build.id}`}
           startTime={format(new Date(build.created_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
-          duration={build.duration}
+          duration={elapsedTime}
           repoUrl={project?.git_repo}
           apkUrl={build.apk_url}
         />
 
         <Box
-          display="grid"
-          gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }}
-          gap={3}
-          alignItems="stretch"
-          sx={{ minHeight: "clamp(320px, 60vh, 520px)" }}
+          sx={{ flex: 1, overflow: 'hidden' }}
         >
-          <Box sx={{ height: '100%' }}>
-            <BuildSteps steps={buildSteps} />
-          </Box>
-          <Box sx={{ height: '100%', maxHeight: '450px' }}>
-            <BuildLog logs={logs} />
-          </Box>
+          <BuildStepsAndLogs steps={buildSteps} logs={logs} />
         </Box>
       </Box>
     </div>

@@ -19,43 +19,43 @@ const BuildParameters: React.FC = () => {
       }}
     >
       <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>
-        Paramètres de build
+        Default Paramater
       </Typography>
 
       <Box display="flex" flexDirection="column" gap={2}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color={theme.palette.text.secondary}>
-            Provider
+            Environment
           </Typography>
           <Typography variant="body2" fontWeight={500}>
-            Custom Runner
+            Release
           </Typography>
         </Box>
 
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color={theme.palette.text.secondary}>
-            Branche
+            Flutter Channel
+          </Typography>
+          <Typography variant="body2" fontWeight={500}>
+            Stable
+          </Typography>
+        </Box>
+
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="body2" color={theme.palette.text.secondary}>
+            Build Target
+          </Typography>
+          <Typography variant="body2" fontWeight={500} color={theme.palette.text.secondary}>
+            APK
+          </Typography>
+        </Box>
+
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="body2" color={theme.palette.text.secondary}>
+            Git ref
           </Typography>
           <Typography variant="body2" fontWeight={500}>
             main
-          </Typography>
-        </Box>
-
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="body2" color={theme.palette.text.secondary}>
-            Dossier de sortie
-          </Typography>
-          <Typography variant="body2" fontWeight={500} color={theme.palette.text.secondary}>
-            —
-          </Typography>
-        </Box>
-
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="body2" color={theme.palette.text.secondary}>
-            Node version
-          </Typography>
-          <Typography variant="body2" fontWeight={500}>
-            20
           </Typography>
         </Box>
       </Box>

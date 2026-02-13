@@ -1,12 +1,14 @@
+"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
+import NextLink from "next/link";
 
-import { useApi } from '@/hooks/useApi';
+import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
 function getStatus(project: any) {
@@ -16,31 +18,17 @@ function getStatus(project: any) {
 
 function RecentProjects() {
   const theme = useTheme();
-  const { request } = useApi();
-  const [projects, setProjects] = useState<any[]>([]);
+  const { projects } = useDashboardData();
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!res.ok) throw new Error('Failed to fetch projects');
-        const data = await res.json();
-        // Sort by updated_at desc and take 4 most recent
-        const sorted = (data.projects || []).sort((a: any, b: any) => {
-          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return dateB - dateA;
-        }).slice(0, 4);
-        setProjects(sorted);
-      } catch (e) {
-        setProjects([]);
-      }
-    };
-    fetchProjects();
-  }, []);
+  const recentProjects = useMemo(() => {
+    return [...projects]
+      .sort((a, b) => {
+        const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 4);
+  }, [projects]);
 
   return (
     <Paper
@@ -63,47 +51,64 @@ function RecentProjects() {
         </Link>
       </Box>
       <Box display="flex" gap={2} overflow="auto" pb={1}>
-        {projects.map((project) => (
-          <Paper
-            key={project.id}
-            elevation={0}
-            sx={{
-              minWidth: 220,
-              maxWidth: 320,
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              background: theme.palette.background.default,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 0.5,
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1}>
-              <Box
-                width={8}
-                height={8}
-                borderRadius={8}
+        {recentProjects.map((project) => {
+          const projectId = project.id ?? project.project_id;
+          return (
+            <Link
+              key={projectId}
+              component={NextLink}
+              href={projectId ? `/projects/${projectId}` : "/projects"}
+              underline="none"
+              color="inherit"
+              sx={{ display: "block" }}
+            >
+              <Paper
+                elevation={0}
                 sx={{
-                  background: getStatus(project) === "Online" ? theme.palette.success.main : theme.palette.grey[500],
+                  minWidth: 220,
+                  maxWidth: 320,
+                  p: 2,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.divider}`,
+                  background: theme.palette.background.default,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.5,
+                  cursor: "pointer",
+                  transition: "box-shadow 0.2s, transform 0.2s",
+                  '&:hover': {
+                    boxShadow: 2,
+                    transform: "translateY(-2px)",
+                  },
                 }}
-              />
-              <Typography fontWeight={500} color={theme.palette.text.primary} fontSize={15}>
-                {project.name}
-              </Typography>
-              <Box flex={1} />
-              <Typography variant="caption" color={theme.palette.text.disabled}>
-                {project.updated_at ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true }) : ''}
-              </Typography>
-            </Box>
-            <Typography variant="caption" color={theme.palette.text.secondary}>
-              {project.git_repo}
-            </Typography>
-            <Typography variant="caption" color={theme.palette.text.disabled}>
-              By {project.git_username}
-            </Typography>
-          </Paper>
-        ))}
+              >
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box
+                    width={8}
+                    height={8}
+                    borderRadius={8}
+                    sx={{
+                      background: getStatus(project) === "Online" ? theme.palette.success.main : theme.palette.grey[500],
+                    }}
+                  />
+                  <Typography fontWeight={500} color={theme.palette.text.primary} fontSize={15}>
+                    {project.name}
+                  </Typography>
+                  <Box flex={1} />
+                  <Typography variant="caption" color={theme.palette.text.disabled}>
+                    {project.updated_at ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true }) : ''}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color={theme.palette.text.secondary}>
+                  {project.git_repo}
+                </Typography>
+                <Typography variant="caption" color={theme.palette.text.disabled}>
+                  By {project.git_username}
+                </Typography>
+              </Paper>
+            </Link>
+          );
+        })}
       </Box>
     </Paper>
   );

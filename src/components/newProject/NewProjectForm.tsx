@@ -5,7 +5,13 @@ import { useApi } from "@/hooks/useApi";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
 import Button from "@mui/material/Button";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 import Stepper from "@mui/material/Stepper";
@@ -13,24 +19,56 @@ import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 
 
-const steps = ["Projet", "Git", "Validation"];
+const steps = ["Project", "Git", "Review"];
 
 const NewProjectForm: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [name, setName] = useState("");
   const [buildFolder, setBuildFolder] = useState(".");
   const [flutterVersion, setFlutterVersion] = useState("3.19.0");
+  
+  // Git state
+  const [gitSource, setGitSource] = useState<"github" | "external">("github");
   const [gitRepo, setGitRepo] = useState("");
+  const [repos, setRepos] = useState<any[]>([]);
   const [gitToken, setGitToken] = useState("");
   const [gitUsername, setGitUsername] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [loadingRepos, setLoadingRepos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { request } = useApi();
   const router = useRouter();
 
+  // Fetch repos when entering step 1 (Git)
+  React.useEffect(() => {
+    if (activeStep === 1) {
+      const fetchRepos = async () => {
+        setLoadingRepos(true);
+        try {
+          const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/repos`);
+          if (res.ok) {
+            const data = await res.json();
+            // Handle structure: { details: { repositories: [...] } }
+            const repoList = data.details?.repositories || data.repositories || [];
+            setRepos(Array.isArray(repoList) ? repoList : []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch github repos", err);
+        } finally {
+          setLoadingRepos(false);
+        }
+      };
+      fetchRepos();
+    }
+  }, [activeStep]);
+
   const isStep0Valid = name.trim() !== "" && buildFolder.trim() !== "" && flutterVersion.trim() !== "";
-  const isStep1Valid = gitRepo.trim() !== "" && gitToken.trim() !== "" && gitUsername.trim() !== "";
+  // Step 1 Validation:
+  // If GitHub source: repo required.
+  // If External source: repo required (token/username optional for public repos).
+  const isStep1Valid = gitRepo.trim() !== "";
   const handleNext = () => setActiveStep((prev) => prev + 1);
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
@@ -57,12 +95,12 @@ const NewProjectForm: React.FC = () => {
           }),
         }
       );
-      if (!res.ok) throw new Error("Erreur lors de la création du projet");
+      if (!res.ok) throw new Error("Error creating project");
       setSuccess(true);
       // Redirect to /projects after successful creation
       router.push("/projects");
     } catch (e: any) {
-      setError(e.message || "Erreur inconnue");
+      setError(e.message || "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -89,27 +127,101 @@ const NewProjectForm: React.FC = () => {
       </Stepper>
       {activeStep === 0 && (
         <Box>
-          <Typography variant="h6" fontWeight={700} mb={2}>Informations du projet</Typography>
-          <TextField label="Nom du projet" value={name} onChange={e => setName(e.target.value)} fullWidth sx={{ mb: 2 }} required />
-          <TextField label="Dossier de build (build_folder)" value={buildFolder} onChange={e => setBuildFolder(e.target.value)} fullWidth sx={{ mb: 2 }} required />
-          <TextField label="Version Flutter (flutter_version)" value={flutterVersion} onChange={e => setFlutterVersion(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <Typography variant="h6" fontWeight={700} mb={2}>Project Information</Typography>
+          <TextField label="Project Name" value={name} onChange={e => setName(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <TextField label="Build Folder (build_folder)" value={buildFolder} onChange={e => setBuildFolder(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <TextField label="Flutter Version (flutter_version)" value={flutterVersion} onChange={e => setFlutterVersion(e.target.value)} fullWidth sx={{ mb: 2 }} required />
         </Box>
       )}
       {activeStep === 1 && (
         <Box>
-          <Typography variant="h6" fontWeight={700} mb={2}>Données Git</Typography>
-          <Box display="flex" gap={2} mb={2}>
-            <TextField label="Dépôt Git (git_repo)" value={gitRepo} onChange={e => setGitRepo(e.target.value)} fullWidth required />
-          </Box>
-          <Box display="flex" gap={2} mb={2}>
-            <TextField label="Git Token (git_token)" value={gitToken} onChange={e => setGitToken(e.target.value)} fullWidth required />
-            <TextField label="Git Username (git_username)" value={gitUsername} onChange={e => setGitUsername(e.target.value)} fullWidth required />
-          </Box>
+          <Typography variant="h6" fontWeight={700} mb={2}>Git Configuration</Typography>
+          
+          <ToggleButtonGroup
+            value={gitSource}
+            exclusive
+            onChange={(e, newSource) => {
+              if (newSource) {
+                setGitSource(newSource);
+                setGitRepo(""); // Reset repo selection when switching source
+              }
+            }}
+            fullWidth
+            sx={{ mb: 3 }}
+          >
+            <ToggleButton value="github">Repo Github</ToggleButton>
+            <ToggleButton value="external">External Git</ToggleButton>
+          </ToggleButtonGroup>
+
+          {gitSource === "github" ? (
+            <Box>
+              <Typography variant="body2" color="textSecondary" mb={2}>
+                 Select a repository from your connected GitHub account.
+              </Typography>
+              <FormControl fullWidth required sx={{ mb: 2 }}>
+                <InputLabel id="git-repo-label">Github repo</InputLabel>
+                <Select
+                  labelId="git-repo-label"
+                  value={gitRepo}
+                  label="Github repo"
+                  onChange={(e) => setGitRepo(e.target.value)}
+                  disabled={loadingRepos}
+                >
+                  {loadingRepos ? (
+                    <MenuItem disabled value="">Loading...</MenuItem>
+                  ) : repos.length > 0 ? (
+                    repos.map((repo: any) => (
+                      <MenuItem key={repo.id} value={`https://github.com/${repo.full_name}`}>
+                        {repo.full_name}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled value="">No repository found</MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+              {/* Optional: GitHub might not need token/username if integrated via OAuth in backend */}
+              <Typography variant="caption" color="textSecondary">
+                Authentication is handled via your connected GitHub account.
+              </Typography>
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="body2" color="textSecondary" mb={2}>
+                 Manually enter details for your external Git repository.
+              </Typography>
+              <TextField 
+                label="Repository URL (git_repo)" 
+                value={gitRepo} 
+                onChange={e => setGitRepo(e.target.value)} 
+                fullWidth 
+                required 
+                sx={{ mb: 2 }}
+                placeholder="https://github.com/username/project.git"
+              />
+              <Box display="flex" gap={2} mb={2}>
+                <TextField 
+                  label="Git Token (git_token)" 
+                  value={gitToken} 
+                  onChange={e => setGitToken(e.target.value)} 
+                  fullWidth 
+                  type="password"
+                  helperText="Optional for public repositories"
+                />
+                <TextField 
+                  label="Git Username (git_username)" 
+                  value={gitUsername} 
+                  onChange={e => setGitUsername(e.target.value)} 
+                  fullWidth 
+                />
+              </Box>
+            </Box>
+          )}
         </Box>
       )}
       {activeStep === 2 && (
         <Box>
-          <Typography variant="h6" fontWeight={700} mb={2}>Validation</Typography>
+          <Typography variant="h6" fontWeight={700} mb={2}>Review</Typography>
           <Box mb={2} display="flex" justifyContent="center">
             <table
               style={{
@@ -123,36 +235,49 @@ const NewProjectForm: React.FC = () => {
             >
               <tbody>
                 <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Nom du projet</td>
-                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{name || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
+                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Project Name</td>
+                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{name || <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Dossier de build</td>
-                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{buildFolder || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
+                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Build Folder</td>
+                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{buildFolder || <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Version Flutter</td>
-                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{flutterVersion || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
+                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Flutter Version</td>
+                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{flutterVersion || <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Dépôt Git</td>
-                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{gitRepo || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
+                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Git Source</td>
+                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{gitSource === 'github' ? 'GitHub (Connected)' : 'External (Manual)'}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Git Token</td>
-                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{gitToken || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
+                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Git Repository</td>
+                  <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{gitRepo || <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
                 </tr>
-                <tr>
-                  <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main }}>Git Username</td>
-                  <td style={{ padding: '12px 16px' }}>{gitUsername || <span style={{ color: theme.palette.text.secondary }}>Non renseigné</span>}</td>
-                </tr>
+                {gitSource === 'external' ? (
+                  <>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main, borderBottom: `1px solid ${theme.palette.divider}` }}>Git Token</td>
+                      <td style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.palette.divider}` }}>{gitToken ? '********' : <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main }}>Git Username</td>
+                      <td style={{ padding: '12px 16px' }}>{gitUsername || <span style={{ color: theme.palette.text.secondary }}>Not provided</span>}</td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td style={{ fontWeight: 600, padding: '12px 16px', color: theme.palette.primary.main }}>Authentication</td>
+                    <td style={{ padding: '12px 16px' }}>Via GitHub App</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </Box>
         </Box>
       )}
       <Box display="flex" justifyContent="space-between" mt={4}>
-        <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined">Précédent</Button>
+        <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined">Back</Button>
         {activeStep < steps.length - 1 ? (
           <Button
             variant="contained"
@@ -163,7 +288,7 @@ const NewProjectForm: React.FC = () => {
               (activeStep === 1 && !isStep1Valid)
             }
           >
-            Suivant
+            Next
           </Button>
         ) : (
           <Button
@@ -172,14 +297,14 @@ const NewProjectForm: React.FC = () => {
             onClick={handleCreateProject}
             disabled={loading}
           >
-            {loading ? "Création..." : "Créer le projet"}
+            {loading ? "Creating..." : "Create Project"}
           </Button>
         )}
             {error && (
               <Typography color="error" mt={2}>{error}</Typography>
             )}
             {success && (
-              <Typography color="primary" mt={2}>Projet créé avec succès !</Typography>
+              <Typography color="primary" mt={2}>Project created successfully!</Typography>
             )}
       </Box>
     </Paper>

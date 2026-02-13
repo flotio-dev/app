@@ -43,25 +43,13 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
     fetchProject();
   }, [projectId, request]);
 
-  const handleStartBuild = async () => {
-    if (!projectId) return;
-    try {
-      await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          Platform: "android",
-          BuildMode: "release",
-          BuildTarget: "apk",
-          FlutterChannel: "stable",
-          GitBranch: "main",
-        }),
-      });
-      // Optionally: show success message or refresh builds
-    } catch (e) {
-      // Optionally: handle error
-    }
-    setOpenBuildModal(false);
+  const handleStartBuild = () => {
+    setOpenBuildModal(true);
+  };
+   
+  const handleModalStartBuild = async () => {
+      // The API call is now handled inside StartBuildModal
+      setOpenBuildModal(false);
   };
 
   return (
@@ -108,7 +96,7 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
         open={openBuildModal}
         projectId={projectId}
         onClose={() => setOpenBuildModal(false)}
-        onStartBuild={handleStartBuild}
+        onStartBuild={handleModalStartBuild}
       />
     </div>
   );

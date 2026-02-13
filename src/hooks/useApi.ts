@@ -1,5 +1,10 @@
 import { useAuth } from "@/auth/AuthContext";
 
+type RefreshResponse = {
+  access_token?: string;
+  refresh_token?: string;
+};
+
 export function useApi() {
   const { accessToken, setUserAndToken, clearAuth } = useAuth();
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -9,7 +14,7 @@ export function useApi() {
       throw new Error("NEXT_PUBLIC_API_URL is not configured");
     }
 
-    let token = accessToken;
+    const token = accessToken;
 
     const fetchWithToken = async (t: string | null) =>
       fetch(input, {
@@ -29,8 +34,20 @@ export function useApi() {
 
         if (!refreshRes.ok) throw new Error("Unauthorized");
 
-        const data = await refreshRes.json();
+        const data = (await refreshRes.json()) as RefreshResponse;
         const newToken = data.access_token;
+        if (!newToken) {
+          throw new Error("Unauthorized");
+        }
+
+        if (data.refresh_token) {
+          await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: data.refresh_token }),
+          });
+        }
+
         const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {
           headers: { Authorization: `Bearer ${newToken}` },
         });

@@ -14,7 +14,7 @@ const isProtectedRoute = (pathname: string) => {
   );
 };
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasRefreshToken = Boolean(request.cookies.get("refresh_token")?.value);
 

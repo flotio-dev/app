@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useApi } from '@/hooks/useApi';
 import {
   Dialog,
   DialogTitle,
@@ -13,6 +14,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Stack,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 
@@ -37,20 +39,58 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
   onStartBuild,
 }) => {
   const theme = useTheme();
-  const [environment, setEnvironment] = useState("DEFAULT");
+  const { request } = useApi();
+  const [environment, setEnvironment] = useState("release");
   const [baseDirectory, setBaseDirectory] = useState("/");
-  const [flutterChannel, setFlutterChannel] = useState("STABLE");
-  const [buildTarget, setBuildTarget] = useState("APK");
+  const [flutterChannel, setFlutterChannel] = useState("stable");
+  const [buildTarget, setBuildTarget] = useState("apk");
   const [gitRef, setGitRef] = useState("main");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleStartBuild = () => {
-    onStartBuild({
-      environment,
-      baseDirectory,
-      platform: buildTarget,
-      gitRef,
-    });
-    onClose();
+  const handleStartBuild = async () => {
+    if (!projectId) return;
+    setError(null);
+
+    try {
+      const payload = {
+        build_mode: environment.toLowerCase(),
+        build_target: buildTarget.toLowerCase(),
+        platform: "android",
+        git_branch: gitRef.toLowerCase(),
+        flutter_channel: flutterChannel.toLowerCase(),
+      };
+
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Build request failed:", res.status, errorText);
+        let errorMessage = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.message) errorMessage = errorJson.message;
+          else if (errorJson.error) errorMessage = errorJson.error;
+        } catch {
+          // Response body is not JSON, use raw text
+        }
+        throw new Error(errorMessage || `Failed to start build (Status: ${res.status})`);
+      }
+
+      onStartBuild({
+        environment,
+        baseDirectory,
+        platform: buildTarget,
+        gitRef,
+      });
+      onClose();
+    } catch (err: any) {
+      console.error("Error starting build:", err);
+      setError(err.message || "An unexpected error occurred");
+    }
   };
 
   return (
@@ -78,6 +118,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}>
+        {error && <Alert severity="error">{error}</Alert>}
         {/* Environment Selection */}
         <Box>
           <Typography
@@ -131,9 +172,9 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
               },
             }}
           >
-            <ToggleButton value="DEFAULT">Release</ToggleButton>
-            <ToggleButton value="PRODUCTION">Debug</ToggleButton>
-            <ToggleButton value="DEVELOPMENT">Profile</ToggleButton>
+            <ToggleButton value="RELEASE">Release</ToggleButton>
+            <ToggleButton value="DEBUG">Debug</ToggleButton>
+            <ToggleButton value="PROFILE">Profile</ToggleButton>
           </ToggleButtonGroup>
         </Box>
 

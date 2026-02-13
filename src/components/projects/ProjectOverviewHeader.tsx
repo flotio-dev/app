@@ -20,6 +20,7 @@ import PublishIcon from "@mui/icons-material/Publish";
 
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
+import StartBuildModal from "@/components/builds/StartBuildModal";
 
 
 const ProjectsHeader: React.FC = () => {
@@ -28,6 +29,7 @@ const ProjectsHeader: React.FC = () => {
 	const params = useParams();
 	const { request } = useApi();
 	const [projectName, setProjectName] = useState<string>("");
+	const [isStartBuildOpen, setIsStartBuildOpen] = useState(false);
 
 	useEffect(() => {
 		const fetchProject = async () => {
@@ -74,9 +76,9 @@ const ProjectsHeader: React.FC = () => {
 					color="primary"
 					startIcon={<PublishIcon />}
 					sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
-					onClick={() => router.push('/new-project')}
+					onClick={() => setIsStartBuildOpen(true)}
 				>
-					Redeploy build
+					Start build
 				</Button>
 				<Button
 					variant="contained"
@@ -88,6 +90,14 @@ const ProjectsHeader: React.FC = () => {
 					Download project
 				</Button>
 			</Box>
+			<StartBuildModal
+				open={isStartBuildOpen}
+				projectId={params.id as string}
+				onClose={() => setIsStartBuildOpen(false)}
+				onStartBuild={() => {
+					// Optionally refresh data
+				}}
+			/>
 		</Box>
 	);
 };

@@ -8,6 +8,7 @@ type AuthContextType = {
   user: User | null;
   accessToken: string | null;
   setUserAndToken: (user: User, token: string) => void;
+  updateUser: (user: User) => void;
   clearAuth: () => void;
 };
 
@@ -28,6 +29,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("accessToken", token);
   };
 
+  const updateUser = (u: User) => {
+    setUser(u);
+    localStorage.setItem("user", JSON.stringify(u));
+  };
+
   const clearAuth = () => {
     setUser(null);
     setAccessToken(null);
@@ -36,7 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, setUserAndToken, clearAuth }}>
+    <AuthContext.Provider value={{ user, accessToken, setUserAndToken, updateUser, clearAuth }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,11 +4,15 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
+import Stepper from "@mui/material/Stepper";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import StepContent from "@mui/material/StepContent";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CircularProgress from "@mui/material/CircularProgress";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import { StepIconProps } from "@mui/material/StepIcon";
 
 interface BuildStep {
   name: string;
@@ -20,34 +24,79 @@ interface BuildStepsProps {
   steps: BuildStep[];
 }
 
+// Custom step icon component
+const StepIconComponent = (props: StepIconProps & { status?: string }) => {
+  const { status } = props;
+
+  if (status === "running") {
+    return (
+      <CircularProgress
+        size={24}
+        sx={{
+          color: "#f59e0b",
+        }}
+      />
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <CancelIcon
+        sx={{
+          color: "#ef4444",
+          fontSize: 28,
+        }}
+      />
+    );
+  }
+
+  if (props.completed) {
+    return (
+      <CheckCircleIcon
+        sx={{
+          color: "#10b981",
+          fontSize: 28,
+        }}
+      />
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        width: 28,
+        height: 28,
+        borderRadius: "50%",
+        border: `2px solid ${props.active ? "#f59e0b" : "#cbd5e1"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: props.active ? "rgba(245, 158, 11, 0.1)" : "transparent",
+      }}
+    >
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 600,
+          color: props.active ? "#f59e0b" : "#cbd5e1",
+        }}
+      >
+        {props.icon}
+      </Typography>
+    </Box>
+  );
+};
+
 const BuildSteps: React.FC<BuildStepsProps> = ({ steps }) => {
   const theme = useTheme();
 
-  const getStepIcon = (status: string) => {
-    switch (status) {
-      case "success":
-        return <CheckCircleIcon sx={{ color: "#10b981", fontSize: 20 }} />;
-      case "failed":
-        return <CancelIcon sx={{ color: "#ef4444", fontSize: 20 }} />;
-      case "running":
-        return <CircularProgress size={20} sx={{ color: "#f59e0b" }} />;
-      default:
-        return <RadioButtonUncheckedIcon sx={{ color: theme.palette.text.disabled, fontSize: 20 }} />;
-    }
-  };
+  // Find the active step (first non-completed step)
+  const activeStep = steps.findIndex(
+    (step) => step.status === "pending" || step.status === "running"
+  );
 
-  const getStepColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return "#10b981";
-      case "failed":
-        return "#ef4444";
-      case "running":
-        return "#f59e0b";
-      default:
-        return theme.palette.text.disabled;
-    }
-  };
+  // Check if build has any failed steps
+  const hasFailed = steps.some((step) => step.status === "failed");
 
   return (
     <Paper
@@ -60,32 +109,99 @@ const BuildSteps: React.FC<BuildStepsProps> = ({ steps }) => {
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        background: theme.palette.mode === "dark" ? "rgba(15, 23, 42, 0.5)" : "rgba(248, 250, 252, 0.5)",
       }}
     >
       <Typography variant="h6" fontWeight={700} mb={3}>
         Étapes du Build
       </Typography>
-      
-      <Box display="flex" flexDirection="column" gap={2}>
-        {steps.map((step, index) => (
-          <Box key={index} display="flex" alignItems="center" gap={2}>
-            {getStepIcon(step.status)}
-            <Box flex={1}>
-              <Typography
-                variant="body2"
-                fontWeight={step.status === "running" ? 600 : 500}
-                color={getStepColor(step.status)}
+
+      <Box sx={{ flex: 1, overflow: "auto" }}>
+        <Stepper
+          activeStep={activeStep === -1 ? steps.length - 1 : activeStep}
+          orientation="vertical"
+          sx={{
+            "& .MuiStepLabel-root": {
+              padding: 0,
+              cursor: "default",
+            },
+            "& .MuiStepContent-root": {
+              borderColor: theme.palette.divider,
+              marginTop: 1,
+            },
+          }}
+        >
+          {steps.map((step, index) => {
+            const isCompleted = step.status === "success";
+            const isFailed = step.status === "failed";
+            const isRunning = step.status === "running";
+
+            return (
+              <Step
+                key={index}
+                completed={isCompleted}
+                sx={{
+                  "& .MuiStepLabel-label": {
+                    fontWeight: isRunning ? 600 : 500,
+                    color:
+                      step.status === "failed"
+                        ? "#ef4444"
+                        : step.status === "running"
+                          ? "#f59e0b"
+                          : step.status === "success"
+                            ? "#10b981"
+                            : "inherit",
+                  },
+                }}
               >
-                {step.name}
-              </Typography>
-            </Box>
-            {step.duration && (
-              <Typography variant="caption" color="text.secondary">
-                {step.duration}
-              </Typography>
-            )}
-          </Box>
-        ))}
+                <StepLabel
+                  StepIconComponent={(props) => (
+                    <StepIconComponent {...props} status={step.status} />
+                  )}
+                  error={isFailed}
+                >
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: isRunning ? 600 : 500,
+                        color:
+                          step.status === "failed"
+                            ? "#ef4444"
+                            : step.status === "running"
+                              ? "#f59e0b"
+                              : step.status === "success"
+                                ? "#10b981"
+                                : "inherit",
+                      }}
+                    >
+                      {step.name}
+                    </Typography>
+                    {step.duration && (
+                      <Typography variant="caption" color="text.secondary">
+                        ({step.duration})
+                      </Typography>
+                    )}
+                  </Box>
+                </StepLabel>
+                {isRunning && (
+                  <StepContent>
+                    <Typography variant="caption" color="text.secondary">
+                      En cours...
+                    </Typography>
+                  </StepContent>
+                )}
+                {isFailed && (
+                  <StepContent>
+                    <Typography variant="caption" sx={{ color: "#ef4444" }}>
+                      Étape échouée
+                    </Typography>
+                  </StepContent>
+                )}
+              </Step>
+            );
+          })}
+        </Stepper>
       </Box>
     </Paper>
   );

@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
+import { parseAnsiLine, stripAnsi } from "@/lib/ansiParser";
 
 interface BuildLogProps {
   logs: string[];
@@ -37,7 +38,7 @@ const BuildLog: React.FC<BuildLogProps> = ({ logs }) => {
           Build Log
         </Typography>
       </Box>
-      
+
       <Box
         sx={{
           flex: 1,
@@ -49,50 +50,61 @@ const BuildLog: React.FC<BuildLogProps> = ({ logs }) => {
           lineHeight: 1.6,
         }}
       >
-        {logs.map((log, index) => (
-          <Box
-            key={index}
-            sx={{
-              display: "flex",
-              gap: 2,
-              "&:hover": {
-                background: "rgba(255, 255, 255, 0.05)",
-              },
-            }}
-          >
-            <Typography
-              component="span"
+        {logs.map((log, index) => {
+          const segments = parseAnsiLine(log);
+          const plainText = stripAnsi(log);
+
+          return (
+            <Box
+              key={index}
               sx={{
-                color: "#666",
-                fontFamily: "monospace",
-                fontSize: "0.75rem",
-                minWidth: "60px",
-                userSelect: "none",
+                display: "flex",
+                gap: 2,
+                "&:hover": {
+                  background: "rgba(255, 255, 255, 0.05)",
+                },
               }}
             >
-              {String(index + 1).padStart(3, " ")}
-            </Typography>
-            <Typography
-              component="span"
-              sx={{
-                color: log.includes("error") || log.includes("✗")
-                  ? "#ef4444"
-                  : log.includes("warning") || log.includes("⚠")
-                  ? "#f59e0b"
-                  : log.includes("✓") || log.includes("success")
-                  ? "#10b981"
-                  : log.includes("->")
-                  ? "#3b82f6"
-                  : "#e5e5e5",
-                fontFamily: "monospace",
-                fontSize: "0.75rem",
-                flex: 1,
-              }}
-            >
-              {log}
-            </Typography>
-          </Box>
-        ))}
+              <Typography
+                component="span"
+                sx={{
+                  color: "#666",
+                  fontFamily: "monospace",
+                  fontSize: "0.75rem",
+                  minWidth: "60px",
+                  userSelect: "none",
+                }}
+              >
+                {String(index + 1).padStart(3, " ")}
+              </Typography>
+              <Typography
+                component="span"
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: "0.75rem",
+                  flex: 1,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 0,
+                }}
+              >
+                {segments.map((segment, segIndex) => (
+                  <span
+                    key={segIndex}
+                    style={{
+                      color: segment.color || "#e5e5e5",
+                      fontWeight: segment.bold ? "bold" : "normal",
+                    }}
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
     </Paper>
   );

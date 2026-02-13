@@ -140,6 +140,7 @@ export function DeploymentsChart() {
   }, [builds, selected]);
 
   const totalBuilds = data.reduce((sum, item) => sum + item.value, 0);
+  const maxValue = data.reduce((max, item) => Math.max(max, item.value), 0);
   const maxBarHeight = 120;
 
   return (
@@ -213,7 +214,7 @@ export function DeploymentsChart() {
                 borderRadius={1}
                 sx={{
                   background: theme.palette.primary.main,
-                  height: `${totalBuilds > 0 ? (d.value / totalBuilds) * maxBarHeight : 0}px`,
+                  height: `${maxValue > 0 ? (d.value / maxValue) * maxBarHeight : 0}px`,
                   transition: 'background 0.2s',
                 }}
               />

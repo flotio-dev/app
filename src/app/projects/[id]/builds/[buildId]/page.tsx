@@ -39,6 +39,7 @@ export default function BuildDetailsPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const buildStatusRef = React.useRef<string>();
 
   // Calculate elapsed time from build start date
   const calculateElapsedTime = (createdAt: string): number => {
@@ -56,6 +57,11 @@ export default function BuildDetailsPage() {
       document.documentElement.style.overflowX = '';
     };
   }, []);
+
+  // Keep ref to build status for timer to access current value
+  useEffect(() => {
+    buildStatusRef.current = build?.status;
+  }, [build?.status]);
 
   // Fetch project details
   useEffect(() => {
@@ -91,8 +97,8 @@ export default function BuildDetailsPage() {
             const foundBuild = (data.builds || []).find((b: APIBuild) => b.id.toString() === buildId);
             if (foundBuild) {
               setBuild(foundBuild);
-              // Initialize elapsed time from build duration (from server)
-              setElapsedTime(foundBuild.duration || 0);
+              // Initialize elapsed time from build start date
+              setElapsedTime(calculateElapsedTime(foundBuild.created_at));
             } else {
               setBuild(null);
             }
@@ -248,17 +254,9 @@ export default function BuildDetailsPage() {
                     }
 
                     // Update elapsed time from sync response
-                    if (typeof syncData.elapsed_time === 'number' && isMounted) {
-                      // Only update elapsed time if build is actively running (not pending)
-                      setBuild(prev => {
-                        if (!prev) return null;
-                        const isRunning = ["building", "running"].includes(prev.status.toLowerCase());
-                        if (isRunning) {
-                          setElapsedTime(syncData.elapsed_time);
-                        }
-                        return prev;
-                      });
-                    }
+                    // Removed - timer local handles elapsed time updates
+
+
                   }
                 } catch (error) {
                   // Reduced logging to avoid spam
@@ -278,11 +276,13 @@ export default function BuildDetailsPage() {
     if (build) {
       timerInterval = setInterval(() => {
         if (isMounted) {
-          setBuild(prev => {
-            if (!prev) return null;
-            // Just check if still running, elapsed time updates come from sync endpoint only
-            return prev;
-          });
+          // Check current status from ref (updated separately)
+          const isRunning = ["building", "running"].includes(
+            buildStatusRef.current?.toLowerCase() || ""
+          );
+          if (isRunning) {
+            setElapsedTime(t => t + 1);
+          }
         }
       }, 1000);
     }
@@ -292,7 +292,7 @@ export default function BuildDetailsPage() {
       if (pollInterval) clearInterval(pollInterval);
       if (timerInterval) clearInterval(timerInterval);
     };
-  }, [build?.id, build?.status, projectId, buildId, request]);
+  }, [build?.id, projectId, buildId, request]);
 
   // Format time to HH:mm:ss
   const formatTime = (seconds: number): string => {
@@ -337,7 +337,6 @@ export default function BuildDetailsPage() {
           branch="main"
           message={`Build #${build.id}`}
           startTime={format(new Date(build.created_at), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
-          duration={elapsedTime}
           repoUrl={project?.git_repo}
           apkUrl={build.apk_url}
         />

@@ -5,6 +5,10 @@ import { useApi } from "@/hooks/useApi";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
@@ -21,13 +25,38 @@ const NewProjectForm: React.FC = () => {
   const [buildFolder, setBuildFolder] = useState(".");
   const [flutterVersion, setFlutterVersion] = useState("3.19.0");
   const [gitRepo, setGitRepo] = useState("");
+  const [repos, setRepos] = useState<any[]>([]);
   const [gitToken, setGitToken] = useState("");
   const [gitUsername, setGitUsername] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingRepos, setLoadingRepos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { request } = useApi();
   const router = useRouter();
+
+  // Fetch repos when entering step 1 (Git)
+  React.useEffect(() => {
+    if (activeStep === 1) {
+      const fetchRepos = async () => {
+        setLoadingRepos(true);
+        try {
+          const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/repos`);
+          if (res.ok) {
+            const data = await res.json();
+            // Handle structure: { details: { repositories: [...] } }
+            const repoList = data.details?.repositories || data.repositories || [];
+            setRepos(Array.isArray(repoList) ? repoList : []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch github repos", err);
+        } finally {
+          setLoadingRepos(false);
+        }
+      };
+      fetchRepos();
+    }
+  }, [activeStep]);
 
   const isStep0Valid = name.trim() !== "" && buildFolder.trim() !== "" && flutterVersion.trim() !== "";
   const isStep1Valid = gitRepo.trim() !== "" && gitToken.trim() !== "" && gitUsername.trim() !== "";
@@ -99,7 +128,28 @@ const NewProjectForm: React.FC = () => {
         <Box>
           <Typography variant="h6" fontWeight={700} mb={2}>Données Git</Typography>
           <Box display="flex" gap={2} mb={2}>
-            <TextField label="Dépôt Git (git_repo)" value={gitRepo} onChange={e => setGitRepo(e.target.value)} fullWidth required />
+            <FormControl fullWidth required>
+              <InputLabel id="git-repo-label">Dépôt Git (git_repo)</InputLabel>
+              <Select
+                labelId="git-repo-label"
+                value={gitRepo}
+                label="Dépôt Git (git_repo)"
+                onChange={(e) => setGitRepo(e.target.value)}
+                disabled={loadingRepos}
+              >
+                {loadingRepos ? (
+                  <MenuItem disabled value="">Chargement...</MenuItem>
+                ) : repos.length > 0 ? (
+                  repos.map((repo: any) => (
+                    <MenuItem key={repo.id} value={`https://github.com/${repo.full_name}`}>
+                      {repo.full_name}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled value="">Aucun dépôt trouvé</MenuItem>
+                )}
+              </Select>
+            </FormControl>
           </Box>
           <Box display="flex" gap={2} mb={2}>
             <TextField label="Git Token (git_token)" value={gitToken} onChange={e => setGitToken(e.target.value)} fullWidth required />

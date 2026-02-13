@@ -70,19 +70,20 @@ function extractProjects(payload: unknown): APIProject[] {
 function StatusBadge({ status }: { status: string }) {
     const getStatusColor = (s: string) => {
         switch (s?.toLowerCase()) {
-            case "success":
-                return { bg: "#d1fae5", text: "#047857", label: "Succès" };
-            case "failed":
-                return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
-            case "building":
-            case "running":
-                return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
-            case "waiting":
-            case "pending":
-                return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
-            default:
-                return { bg: "#f1f5f9", text: "#475569", label: s || "Aucun build" };
-        }
+			case "success":
+				return { bg: "#d1fae5", text: "#047857", label: "Success" };
+			case "failed":
+				return { bg: "#fee2e2", text: "#dc2626", label: "Failed" };
+			case "building":
+			case "running":
+				return { bg: "#fef3c7", text: "#d97706", label: "Running" };
+			case "waiting":
+				return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
+			case "pending":
+				return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
+			default:
+				return { bg: "#f3f4f6", text: "#374151", label: "any build" };
+		}
     };
 
     const { bg, text, label } = getStatusColor(status);

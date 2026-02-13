@@ -69,7 +69,7 @@ export default function BuildDetailsPage() {
       };
       fetchProject();
     }
-  }, [projectId, request]);
+  }, [projectId]);
 
   // Fetch builds using the API
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function BuildDetailsPage() {
       };
       fetchBuild();
     }
-  }, [projectId, buildId, request]);
+  }, [projectId, buildId]);
 
   // Define the expected build steps
   const stepsDefinitions = [
@@ -120,6 +120,9 @@ export default function BuildDetailsPage() {
 
     let isMounted = true;
     let pollInterval: NodeJS.Timeout;
+    
+    // Generate a unique connection ID for this session
+    const connectionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const fetchLogs = async () => {
       try {
@@ -128,7 +131,7 @@ export default function BuildDetailsPage() {
           const data = await res.json();
           if (isMounted) {
             setLogs(data.logs || []);
-            
+
             // If building or running, poll for updates
             const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
             if (isRunning) {
@@ -137,7 +140,9 @@ export default function BuildDetailsPage() {
               pollInterval = setInterval(async () => {
                 if (!isMounted) return;
                 try {
-                  const syncRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?last_line=${currentLastLine}`);
+                  const syncRes = await request(
+                    `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?lastLine=${currentLastLine}&connectionId=${connectionId}`
+                  );
                   if (syncRes.ok) {
                     const syncData = await syncRes.json();
                     
@@ -150,29 +155,9 @@ export default function BuildDetailsPage() {
                     } else {
                       currentLastLine += (syncData.logs?.length || 0);
                     }
-
-                    // Update build status and duration if changed
-                    if (syncData.status || typeof syncData.elapsed_time === 'number') {
-                       setBuild(prev => {
-                          if (!prev) return null;
-                          const updated = { ...prev };
-                          let changed = false;
-
-                          if (syncData.status && syncData.status !== prev.status) {
-                             updated.status = syncData.status;
-                             changed = true;
-                          }
-                          if (typeof syncData.elapsed_time === 'number' && syncData.elapsed_time !== prev.duration) {
-                             updated.duration = syncData.elapsed_time;
-                             changed = true;
-                          }
-                          
-                          return changed ? updated : prev;
-                       });
-                    }
                   }
                 } catch (error) {
-                  console.error("Sync error:", error);
+                  // Reduced logging to avoid spam
                 }
               }, 3000);
             }
@@ -189,7 +174,7 @@ export default function BuildDetailsPage() {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [build?.id, build?.status, projectId, buildId, request]);
+  }, [build?.id, build?.status, projectId, buildId]);
 
   if (isLoading) {
     return (

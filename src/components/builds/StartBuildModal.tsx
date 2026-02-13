@@ -40,10 +40,10 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
 }) => {
   const theme = useTheme();
   const { request } = useApi();
-  const [environment, setEnvironment] = useState("release");
+  const [environment, setEnvironment] = useState("RELEASE");
   const [baseDirectory, setBaseDirectory] = useState("/");
-  const [flutterChannel, setFlutterChannel] = useState("stable");
-  const [buildTarget, setBuildTarget] = useState("apk");
+  const [flutterChannel, setFlutterChannel] = useState("STABLE");
+  const [buildTarget, setBuildTarget] = useState("APK");
   const [gitRef, setGitRef] = useState("main");
   const [error, setError] = useState<string | null>(null);
 

@@ -30,15 +30,18 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
   const [successBuilds, setSuccessBuilds] = useState(0);
   const [failedBuilds, setFailedBuilds] = useState(0);
   const [successRate, setSuccessRate] = useState(0);
+  const [lastBuildLog, setLastBuildLog] = useState<string>("No recent activity.");
 
   useEffect(() => {
     if (projectId) {
-      const fetchBuilds = async () => {
+      const fetchBuildsAndLogs = async () => {
         try {
           const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
           if (response.ok) {
             const data = await response.json();
-            const builds: APIBuild[] = data.builds || [];
+            const builds: APIBuild[] = (data.builds || []).sort((a: APIBuild, b: APIBuild) => 
+               new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
 
             const total = builds.length;
             const success = builds.filter((build) => build.status.toLowerCase() === "success").length;
@@ -49,13 +52,34 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
             setSuccessBuilds(success);
             setFailedBuilds(failed);
             setSuccessRate(rate);
+
+            // Fetch last build logs if available
+            if (builds.length > 0) {
+              const lastBuild = builds[0];
+              try {
+                const logsResponse = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${lastBuild.id}/logs`);
+                if (logsResponse.ok) {
+                  const logsData = await logsResponse.json();
+                  const logs = logsData.logs || [];
+                  const prefix = `Build #${lastBuild.id} (${lastBuild.status.toUpperCase()}): `;
+                  if (logs.length > 0) {
+                    setLastBuildLog(`${prefix}${logs[logs.length - 1]}`);
+                  } else {
+                    setLastBuildLog(`${prefix}No logs available.`);
+                  }
+                }
+              } catch (logError) {
+                console.error("Failed to fetch last build logs", logError);
+                setLastBuildLog("Failed to load last build logs.");
+              }
+            }
           }
         } catch (error) {
           console.error("Failed to fetch builds overview", error);
         }
       };
 
-      fetchBuilds();
+      fetchBuildsAndLogs();
     }
   }, [projectId, request]);
 
@@ -71,7 +95,7 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
       }}
     >
       <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>
-        Aperçu
+        Overview
       </Typography>
 
       {/* Stats Cards */}
@@ -87,7 +111,7 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
           }}
         >
           <Typography variant="caption" color={theme.palette.text.secondary}>
-            TOTAL DES BUILDS
+            TOTAL BUILDS
           </Typography>
           <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
             {totalBuilds}
@@ -106,7 +130,7 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
         >
           <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
             <Typography variant="caption" color={theme.palette.text.secondary}>
-              SUCCÈS
+              SUCCESS
             </Typography>
           </Box>
           <Box display="flex" alignItems="center" justifyContent="center" gap={1} sx={{ mt: 1 }}>
@@ -134,7 +158,7 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
         >
           <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
             <Typography variant="caption" color={theme.palette.text.secondary}>
-              ÉCHEC
+              FAILED
             </Typography>
           </Box>
           <Box display="flex" alignItems="center" justifyContent="center" gap={1} sx={{ mt: 1 }}>
@@ -157,10 +181,21 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
         }}
       >
         <Typography variant="body2" color={theme.palette.text.secondary} sx={{ mb: 1 }}>
-          Description de la dernière activité
+          Last build log
         </Typography>
-        <Typography variant="body2" fontWeight={500}>
-          Build #42 from main deployed to preview.
+        <Typography 
+          variant="body2" 
+          fontWeight={500} 
+          sx={{ 
+            fontFamily: 'monospace', 
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+            maxHeight: '100px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+        >
+          {lastBuildLog}
         </Typography>
       </Paper>
     </Paper>

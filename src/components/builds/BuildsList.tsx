@@ -218,18 +218,18 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "success":
-        return { bg: "#d1fae5", text: "#047857", label: "Succès" };
+        return { bg: "#d1fae5", text: "#047857", label: "Success" };
       case "failed":
-        return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
+        return { bg: "#fee2e2", text: "#dc2626", label: "Failed" };
       case "building":
       case "running":
-        return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
+        return { bg: "#fef3c7", text: "#d97706", label: "Running" };
       case "waiting":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
+        return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
       case "pending":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
+        return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
       default:
-        return { bg: "#f3f4f6", text: "#374151", label: "Inconnu" };
+        return { bg: "#f3f4f6", text: "#374151", label: "Unknown" };
     }
   };
 
@@ -296,8 +296,9 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                   variant="body2"
                   sx={{
                     color: theme.palette.text.secondary,
-                    minWidth: '150px',
-                    paddingLeft: 20,
+                    width: '180px',
+                    minWidth: '180px', // Fixed width for alignment
+                    paddingLeft: 4, // Reduced padding, using fixed width for spacing
                   }}
                 >
                   {format(new Date(build.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
@@ -308,23 +309,29 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                   variant="body2"
                   sx={{
                     color: theme.palette.text.secondary,
-                    minWidth: '150px',
-                    paddingLeft: 5,
+                    width: '200px',
+                    minWidth: '200px', // Fixed width for alignment
+                    textAlign: 'left'
                   }}
                 >
-                  {build.duration ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr }) : '-'}
+                  {["building", "running", "pending"].includes(build.status.toLowerCase()) 
+                    ? "Running..." 
+                    : build.duration 
+                      ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr }) 
+                      : '-'}
                 </Typography>
 
                 {/* Description / Platform */}
                 <Typography
                   variant="body2"
                   sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    paddingLeft: 10,
+                    flex: 1, // Allow this column to take up remaining space
+                    minWidth: '150px', 
+                    paddingLeft: 4,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    textAlign: 'right', // Align to right so it sits nicely against the actions
                   }}
                 >
                   {build.platform}

@@ -27,7 +27,10 @@ const MONTHS = [
 const periodDays: Record<string, number> = {
   "7d": 7,
   "30d": 30,
-  "90d": 90,
+};
+
+const periodHours: Record<string, number> = {
+  "24h": 24,
 };
 
 const formatDayLabel = (date: Date, days: number) => {
@@ -60,16 +63,57 @@ const toDateKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const toHourKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  return `${year}-${month}-${day}-${hour}`;
+};
+
+const formatHourLabel = (date: Date) => {
+  const hour = String(date.getHours()).padStart(2, "0");
+  return `${hour}:00`;
+};
+
 
 export function DeploymentsChart() {
   const theme = useTheme();
   const { builds } = useDashboardData();
-  const [selected, setSelected] = useState("7d");
-  const periods = ["7d", "30d", "90d"];
+  const [selected, setSelected] = useState("24h");
+  const periods = ["24h", "7d", "30d"];
   const data = useMemo(() => {
-    const days = periodDays[selected] ?? 7;
-    const bucketSize = days <= 7 ? 1 : days <= 30 ? 5 : 15;
+    if (selected === "24h") {
+      const counts = new Map<string, number>();
+      builds.forEach((build) => {
+        if (!build?.created_at) return;
+        const createdAt = new Date(build.created_at);
+        if (Number.isNaN(createdAt.getTime())) return;
+        const key = toHourKey(createdAt);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      });
 
+      const now = new Date();
+      const currentHour = new Date(now);
+      currentHour.setMinutes(0, 0, 0);
+
+      const range: Array<{ day: string; value: number }> = [];
+      const hours = periodHours[selected] ?? 24;
+
+      for (let i = hours - 1; i >= 0; i -= 1) {
+        const bucketStart = new Date(currentHour);
+        bucketStart.setHours(currentHour.getHours() - i);
+        const key = toHourKey(bucketStart);
+        range.push({
+          day: formatHourLabel(bucketStart),
+          value: counts.get(key) ?? 0,
+        });
+      }
+
+      return range;
+    }
+
+    const days = periodDays[selected] ?? 7;
     const counts = new Map<string, number>();
     builds.forEach((build) => {
       if (!build?.created_at) return;
@@ -82,26 +126,13 @@ export function DeploymentsChart() {
     const today = new Date();
     const range: Array<{ day: string; value: number }> = [];
 
-    for (let i = days - 1; i >= 0; i -= bucketSize) {
+    for (let i = days - 1; i >= 0; i -= 1) {
       const bucketStart = new Date(today);
       bucketStart.setDate(today.getDate() - i);
-      const bucketEnd = new Date(bucketStart);
-      bucketEnd.setDate(bucketStart.getDate() + bucketSize - 1);
-      if (bucketEnd > today) {
-        bucketEnd.setTime(today.getTime());
-      }
-
-      let total = 0;
-      const cursor = new Date(bucketStart);
-      while (cursor <= bucketEnd) {
-        const key = toDateKey(cursor);
-        total += counts.get(key) ?? 0;
-        cursor.setDate(cursor.getDate() + 1);
-      }
-
+      const key = toDateKey(bucketStart);
       range.push({
-        day: bucketSize === 1 ? formatDayLabel(bucketStart, days) : formatRangeLabel(bucketStart, bucketEnd),
-        value: total,
+        day: formatDayLabel(bucketStart, days),
+        value: counts.get(key) ?? 0,
       });
     }
 
@@ -109,6 +140,7 @@ export function DeploymentsChart() {
   }, [builds, selected]);
 
   const totalBuilds = data.reduce((sum, item) => sum + item.value, 0);
+  const maxBarHeight = 120;
 
   return (
     <Paper
@@ -181,8 +213,7 @@ export function DeploymentsChart() {
                 borderRadius={1}
                 sx={{
                   background: theme.palette.primary.main,
-                  height: `${d.value * 1.8}px`,
-                  maxHeight: 120,
+                  height: `${totalBuilds > 0 ? (d.value / totalBuilds) * maxBarHeight : 0}px`,
                   transition: 'background 0.2s',
                 }}
               />

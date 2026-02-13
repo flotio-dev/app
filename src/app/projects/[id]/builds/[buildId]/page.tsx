@@ -91,8 +91,8 @@ export default function BuildDetailsPage() {
             const foundBuild = (data.builds || []).find((b: APIBuild) => b.id.toString() === buildId);
             if (foundBuild) {
               setBuild(foundBuild);
-              // Initialize elapsed time from build start date
-              setElapsedTime(calculateElapsedTime(foundBuild.created_at));
+              // Initialize elapsed time from build duration (from server)
+              setElapsedTime(foundBuild.duration || 0);
             } else {
               setBuild(null);
             }

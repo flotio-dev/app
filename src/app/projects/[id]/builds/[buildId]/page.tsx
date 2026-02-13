@@ -249,11 +249,11 @@ export default function BuildDetailsPage() {
 
                     // Update elapsed time from sync response
                     if (typeof syncData.elapsed_time === 'number' && isMounted) {
-                      // Only update elapsed time if build is still running
+                      // Only update elapsed time if build is actively running (not pending)
                       setBuild(prev => {
                         if (!prev) return null;
-                        const isStillRunning = ["building", "running", "pending"].includes(prev.status.toLowerCase());
-                        if (isStillRunning) {
+                        const isRunning = ["building", "running"].includes(prev.status.toLowerCase());
+                        if (isRunning) {
                           setElapsedTime(syncData.elapsed_time);
                         }
                         return prev;
@@ -280,10 +280,7 @@ export default function BuildDetailsPage() {
         if (isMounted) {
           setBuild(prev => {
             if (!prev) return null;
-            const isStillRunning = ["building", "running", "pending"].includes(prev.status.toLowerCase());
-            if (isStillRunning) {
-              setElapsedTime(t => t + 1);
-            }
+            // Just check if still running, elapsed time updates come from sync endpoint only
             return prev;
           });
         }

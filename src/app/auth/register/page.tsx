@@ -9,6 +9,7 @@ import { useAuth } from '@/auth/AuthContext';
 
 interface AuthResponse {
   access_token?: string;
+  refresh_token?: string;
 }
 
 interface CurrentUser {
@@ -44,6 +45,18 @@ export default function RegisterPage() {
     const authData = (await res.json()) as AuthResponse;
     if (!authData.access_token) {
       throw new Error('Missing access token');
+    }
+    if (!authData.refresh_token) {
+      throw new Error('Missing refresh token');
+    }
+
+    const sessionRes = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: authData.refresh_token }),
+    });
+    if (!sessionRes.ok) {
+      throw new Error('Unable to persist session');
     }
 
     const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {

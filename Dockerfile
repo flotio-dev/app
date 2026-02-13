@@ -35,6 +35,7 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
+ENV APP_ID=flotio-app-prod
 # Uncomment the following line in case you want to disable telemetry during runtime.
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NEXT_PUBLIC_API_URL=https://api.flotio.ovh

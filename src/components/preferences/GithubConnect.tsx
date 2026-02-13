@@ -16,7 +16,7 @@ const GithubConnect: React.FC = () => {
   const theme = useTheme();
   const { request } = useApi();
   const [hasInstallation, setHasInstallation] = useState<boolean | null>(null);
-  const GITHUB_INSTALL_URL = `https://github.com/apps/${process.env.APP_ID}/installations/new`;
+  const GITHUB_INSTALL_URL = `https://github.com/apps/${process.env.NEXT_PUBLIC_APP_ID}/installations/new`;
 
   useEffect(() => {
     const checkInstallation = async () => {

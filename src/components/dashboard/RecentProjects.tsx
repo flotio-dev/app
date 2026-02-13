@@ -1,12 +1,13 @@
+"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 
-import { useApi } from '@/hooks/useApi';
+import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
 function getStatus(project: any) {
@@ -16,31 +17,17 @@ function getStatus(project: any) {
 
 function RecentProjects() {
   const theme = useTheme();
-  const { request } = useApi();
-  const [projects, setProjects] = useState<any[]>([]);
+  const { projects } = useDashboardData();
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!res.ok) throw new Error('Failed to fetch projects');
-        const data = await res.json();
-        // Sort by updated_at desc and take 4 most recent
-        const sorted = (data.projects || []).sort((a: any, b: any) => {
-          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return dateB - dateA;
-        }).slice(0, 4);
-        setProjects(sorted);
-      } catch (e) {
-        setProjects([]);
-      }
-    };
-    fetchProjects();
-  }, []);
+  const recentProjects = useMemo(() => {
+    return [...projects]
+      .sort((a, b) => {
+        const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 4);
+  }, [projects]);
 
   return (
     <Paper
@@ -63,7 +50,7 @@ function RecentProjects() {
         </Link>
       </Box>
       <Box display="flex" gap={2} overflow="auto" pb={1}>
-        {projects.map((project) => (
+        {recentProjects.map((project) => (
           <Paper
             key={project.id}
             elevation={0}

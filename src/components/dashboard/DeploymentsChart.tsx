@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
-import { useApi } from "@/hooks/useApi";
+import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -63,117 +63,52 @@ const toDateKey = (date: Date) => {
 
 export function DeploymentsChart() {
   const theme = useTheme();
-  const { request } = useApi();
+  const { builds } = useDashboardData();
   const [selected, setSelected] = useState("7d");
-  const [data, setData] = useState<Array<{ day: string; value: number }>>([]);
   const periods = ["7d", "30d", "90d"];
-  const totalBuilds = data.reduce((sum, item) => sum + item.value, 0);
-
-  useEffect(() => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const data = useMemo(() => {
     const days = periodDays[selected] ?? 7;
     const bucketSize = days <= 7 ? 1 : days <= 30 ? 5 : 15;
 
-    const buildDates = (counts: Map<string, number>) => {
-      const today = new Date();
-      const range: Array<{ day: string; value: number }> = [];
+    const counts = new Map<string, number>();
+    builds.forEach((build) => {
+      if (!build?.created_at) return;
+      const createdAt = new Date(build.created_at);
+      if (Number.isNaN(createdAt.getTime())) return;
+      const key = toDateKey(createdAt);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
 
-      for (let i = days - 1; i >= 0; i -= bucketSize) {
-        const bucketStart = new Date(today);
-        bucketStart.setDate(today.getDate() - i);
-        const bucketEnd = new Date(bucketStart);
-        bucketEnd.setDate(bucketStart.getDate() + bucketSize - 1);
-        if (bucketEnd > today) {
-          bucketEnd.setTime(today.getTime());
-        }
+    const today = new Date();
+    const range: Array<{ day: string; value: number }> = [];
 
-        let total = 0;
-        const cursor = new Date(bucketStart);
-        while (cursor <= bucketEnd) {
-          const key = toDateKey(cursor);
-          total += counts.get(key) ?? 0;
-          cursor.setDate(cursor.getDate() + 1);
-        }
-
-        range.push({
-          day: bucketSize === 1 ? formatDayLabel(bucketStart, days) : formatRangeLabel(bucketStart, bucketEnd),
-          value: total,
-        });
+    for (let i = days - 1; i >= 0; i -= bucketSize) {
+      const bucketStart = new Date(today);
+      bucketStart.setDate(today.getDate() - i);
+      const bucketEnd = new Date(bucketStart);
+      bucketEnd.setDate(bucketStart.getDate() + bucketSize - 1);
+      if (bucketEnd > today) {
+        bucketEnd.setTime(today.getTime());
       }
 
-      return range;
-    };
+      let total = 0;
+      const cursor = new Date(bucketStart);
+      while (cursor <= bucketEnd) {
+        const key = toDateKey(cursor);
+        total += counts.get(key) ?? 0;
+        cursor.setDate(cursor.getDate() + 1);
+      }
 
-    if (!apiBaseUrl) {
-      setData(buildDates(new Map()));
-      return;
+      range.push({
+        day: bucketSize === 1 ? formatDayLabel(bucketStart, days) : formatRangeLabel(bucketStart, bucketEnd),
+        value: total,
+      });
     }
 
-    let isActive = true;
+    return range;
+  }, [builds, selected]);
 
-    const loadBuildsByDay = async () => {
-      try {
-        const projectsRes = await request(`${apiBaseUrl}/project`);
-        if (!projectsRes.ok) {
-          if (isActive) setData(buildDates(new Map()));
-          return;
-        }
-
-        const projectsData = await projectsRes.json();
-        const projects = Array.isArray(projectsData)
-          ? projectsData
-          : projectsData?.projects ?? [];
-
-        const projectIds = projects
-          .map((project: { id?: string | number; project_id?: string | number }) => project.id ?? project.project_id)
-          .filter(Boolean);
-
-        if (projectIds.length === 0) {
-          if (isActive) setData(buildDates(new Map()));
-          return;
-        }
-
-        const buildsResults = await Promise.allSettled(
-          projectIds.map((projectId: string | number) => request(`${apiBaseUrl}/project/${projectId}/builds`))
-        );
-
-        const buildsArrays = await Promise.all(
-          buildsResults
-            .filter((result): result is PromiseFulfilledResult<Response> => result.status === "fulfilled")
-            .map(async (result) => {
-              if (!result.value.ok) return [];
-              const data = await result.value.json();
-              if (Array.isArray(data?.builds)) return data.builds;
-              if (Array.isArray(data)) return data;
-              return [];
-            })
-        );
-
-        const builds = buildsArrays.flat();
-
-        const counts = new Map<string, number>();
-        builds.forEach((build: { created_at?: string }) => {
-          if (!build?.created_at) return;
-          const createdAt = new Date(build.created_at);
-          if (Number.isNaN(createdAt.getTime())) return;
-          const key = toDateKey(createdAt);
-          counts.set(key, (counts.get(key) ?? 0) + 1);
-        });
-
-        if (isActive) {
-          setData(buildDates(counts));
-        }
-      } catch {
-        if (isActive) setData(buildDates(new Map()));
-      }
-    };
-
-    loadBuildsByDay();
-
-    return () => {
-      isActive = false;
-    };
-  }, [request, selected]);
+  const totalBuilds = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Paper

@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useAuth } from "@/auth/AuthContext";
 
 type RefreshResponse = {
@@ -9,7 +10,7 @@ export function useApi() {
   const { accessToken, setUserAndToken, clearAuth } = useAuth();
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
 
-  const request = async (input: RequestInfo, init: RequestInit = {}) => {
+  const request = useCallback(async (input: RequestInfo, init: RequestInit = {}) => {
     if (!apiBaseUrl) {
       throw new Error("NEXT_PUBLIC_API_URL is not configured");
     }
@@ -66,7 +67,7 @@ export function useApi() {
     }
 
     return res;
-  };
+  }, [accessToken, apiBaseUrl, clearAuth, setUserAndToken]);
 
   return { request };
 }

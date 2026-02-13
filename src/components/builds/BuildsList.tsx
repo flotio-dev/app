@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -76,58 +76,68 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const router = useRouter();
   const { request } = useApi();
   const [builds, setBuilds] = useState<APIBuild[]>([]);
-  const loadedProjectIdRef = useRef<string | null>(null);
   const fetchingProjectIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedBuild, setSelectedBuild] = useState<APIBuild | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const fetchBuilds = useCallback(async () => {
     if (!projectId) {
       setBuilds([]);
-      loadedProjectIdRef.current = null;
       fetchingProjectIdRef.current = null;
       return;
     }
 
-    if (
-      loadedProjectIdRef.current === projectId ||
-      fetchingProjectIdRef.current === projectId
-    ) {
+    if (fetchingProjectIdRef.current === projectId) {
       return;
     }
 
-    let isMounted = true;
     fetchingProjectIdRef.current = projectId;
 
-    const fetchBuilds = async () => {
-      try {
-        const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
-        if (!response.ok) throw new Error("Failed to fetch builds");
-        const data = await response.json();
-        if (isMounted) {
-          setBuilds(extractBuilds(data));
-          loadedProjectIdRef.current = projectId;
-        }
-      } catch (error) {
-        console.error("Failed to fetch builds:", error);
-      } finally {
-        if (fetchingProjectIdRef.current === projectId) {
-          fetchingProjectIdRef.current = null;
-        }
+    try {
+      const response = await request(
+        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`
+      );
+      if (!response.ok) throw new Error("Failed to fetch builds");
+      const data = await response.json();
+      if (isMountedRef.current) {
+        setBuilds(extractBuilds(data));
       }
-    };
-
-    fetchBuilds();
-
-    return () => {
-      isMounted = false;
+    } catch (error) {
+      console.error("Failed to fetch builds:", error);
+    } finally {
       if (fetchingProjectIdRef.current === projectId) {
         fetchingProjectIdRef.current = null;
       }
-    };
+    }
   }, [projectId, request]);
+
+  useEffect(() => {
+    fetchBuilds();
+  }, [fetchBuilds]);
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      fetchBuilds();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [projectId, fetchBuilds]);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>, build: APIBuild) => {
     event.stopPropagation();
@@ -314,10 +324,10 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                     textAlign: 'left'
                   }}
                 >
-                  {["building", "running", "pending"].includes(build.status.toLowerCase()) 
-                    ? "Running..." 
-                    : build.duration 
-                      ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr }) 
+                  {["building", "running", "pending"].includes(build.status.toLowerCase())
+                    ? "Running..."
+                    : build.duration
+                      ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr })
                       : '-'}
                 </Typography>
 
@@ -326,7 +336,7 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
                   variant="body2"
                   sx={{
                     flex: 1, // Allow this column to take up remaining space
-                    minWidth: '150px', 
+                    minWidth: '150px',
                     paddingLeft: 4,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -370,12 +380,12 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
         {selectedBuild?.status.toLowerCase() === "success" && selectedBuild.apk_url && (
-            <MenuItem onClick={handleDownload} sx={{ color: theme.palette.text.primary }}>
-              <ListItemIcon>
-                <DownloadIcon fontSize="small" color="primary" />
-              </ListItemIcon>
-              <ListItemText>Download APK</ListItemText>
-            </MenuItem>
+          <MenuItem onClick={handleDownload} sx={{ color: theme.palette.text.primary }}>
+            <ListItemIcon>
+              <DownloadIcon fontSize="small" color="primary" />
+            </ListItemIcon>
+            <ListItemText>Download APK</ListItemText>
+          </MenuItem>
         )}
         <MenuItem onClick={handleDeleteClick} sx={{ color: theme.palette.error.main }}>
           <ListItemIcon>
@@ -401,11 +411,11 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained" 
-            autoFocus 
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            autoFocus
             disabled={isDeleting}
           >
             {isDeleting ? "Deleting..." : "Delete"}

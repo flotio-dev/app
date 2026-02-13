@@ -81,8 +81,10 @@ function StatusBadge({ status }: { status: string }) {
 				return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
 			case "pending":
 				return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
+			case "cancelled":
+				return { bg: "#e0f2fe", text: "#0284c7", label: "Cancelled" };
 			default:
-				return { bg: "#f3f4f6", text: "#374151", label: "any build" };
+				return { bg: "#f3f4f6", text: "#374151", label: "Unknown" };
 		}
     };
 

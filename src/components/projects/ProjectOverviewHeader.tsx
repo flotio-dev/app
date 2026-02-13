@@ -16,11 +16,11 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SearchIcon from "@mui/icons-material/Search";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import PublishIcon from "@mui/icons-material/Publish";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 
 
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
-import StartBuildModal from "@/components/builds/StartBuildModal";
 
 
 const ProjectsHeader: React.FC = () => {
@@ -29,26 +29,70 @@ const ProjectsHeader: React.FC = () => {
 	const params = useParams();
 	const { request } = useApi();
 	const [projectName, setProjectName] = useState<string>("");
-	const [isStartBuildOpen, setIsStartBuildOpen] = useState(false);
+	const [latestSuccessBuild, setLatestSuccessBuild] = useState<any>(null);
 
 	useEffect(() => {
-		const fetchProject = async () => {
-			const projectId = params.id;
-			if (!projectId) return;
+		const projectId = params.id;
+		if (!projectId) return;
+
+		const fetchProjectData = async () => {
 			try {
-				const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`, {
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-				});
-				if (!res.ok) throw new Error('Failed to fetch project');
-				const data = await res.json();
-				setProjectName(data.project?.name || '');
-			} catch {
-				setProjectName('');
+				// Fetch project details
+				const projectRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`);
+				if (projectRes.ok) {
+					const projectData = await projectRes.json();
+					setProjectName(projectData.project?.name || '');
+				}
+
+				// Fetch builds to find the latest successful one
+				const buildsRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
+				if (buildsRes.ok) {
+					const buildsData = await buildsRes.json();
+					const builds = buildsData.builds || [];
+					
+					// Sort by date descending
+					const sortedBuilds = builds.sort((a: any, b: any) => 
+						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+					);
+
+					if (sortedBuilds.length > 0) {
+						const lastBuild = sortedBuilds[0];
+						if (lastBuild.status.toLowerCase() === 'success') {
+							setLatestSuccessBuild(lastBuild);
+						}
+					}
+				}
+			} catch (error) {
+				console.error("Error fetching project data:", error);
 			}
 		};
-		fetchProject();
+
+		fetchProjectData();
 	}, [params.id, request]);
+
+	const handleDownload = async () => {
+		if (!latestSuccessBuild || !params.id) {
+			alert("No successful build available for download.");
+			return;
+		}
+
+		try {
+			const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${params.id}/build/${latestSuccessBuild.id}/download`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.download_url) {
+					window.open(data.download_url, "_blank");
+				} else {
+					alert("Download URL not found.");
+				}
+			} else {
+				alert("Failed to get download URL.");
+			}
+		} catch (error) {
+			console.error("Error downloading apk:", error);
+			alert("An error occurred during download.");
+		}
+	};
 
 	return (
 		<Box display="flex" alignItems="center" justifyContent="space-between" width="100%" height={64}>
@@ -74,30 +118,23 @@ const ProjectsHeader: React.FC = () => {
 				<Button
 					variant="contained"
 					color="primary"
-					startIcon={<PublishIcon />}
+					startIcon={<ListAltIcon />}
 					sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
-					onClick={() => setIsStartBuildOpen(true)}
+					onClick={() => router.push(`/projects/${params.id}/builds`)}
 				>
-					Start build
+					Go to builds
 				</Button>
 				<Button
 					variant="contained"
 					color="primary"
 					startIcon={<CloudDownloadIcon />}
 					sx={{ ml: 2, borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, py: 1 }}
-					onClick={() => router.push('/new-project')}
+					onClick={handleDownload}
+					disabled={!latestSuccessBuild}
 				>
-					Download project
+					Download APK
 				</Button>
 			</Box>
-			<StartBuildModal
-				open={isStartBuildOpen}
-				projectId={params.id as string}
-				onClose={() => setIsStartBuildOpen(false)}
-				onStartBuild={() => {
-					// Optionally refresh data
-				}}
-			/>
 		</Box>
 	);
 };

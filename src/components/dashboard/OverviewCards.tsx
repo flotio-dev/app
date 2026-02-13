@@ -1,99 +1,38 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { useApi } from '@/hooks/useApi';
+import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 
 const OverviewCards: React.FC = () => {
   const theme = useTheme();
-  const { request } = useApi();
-  const [totalBuilds, setTotalBuilds] = useState<string>("—");
-  const [successRate, setSuccessRate] = useState<string>("—");
-  const [avgBuildTime, setAvgBuildTime] = useState<string>("—");
+  const { builds, projects } = useDashboardData();
 
-  useEffect(() => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-    if (!apiBaseUrl) {
-      setTotalBuilds("—");
-      return;
+  const { totalBuilds, successRate, avgBuildTime } = useMemo(() => {
+    if (projects.length === 0) {
+      return { totalBuilds: "—", successRate: "—", avgBuildTime: "—" };
     }
 
-    let isActive = true;
+    const total = builds.length;
+    const successes = builds.filter((build) => build.status === "success").length;
+    const successPct = total > 0 ? Math.round((successes / total) * 1000) / 10 : null;
 
-    const loadBuildsCount = async () => {
-      try {
-        const projectsRes = await request(`${apiBaseUrl}/project`);
-        if (!projectsRes.ok) {
-          if (isActive) setTotalBuilds("—");
-          return;
-        }
+    const durations = builds
+      .map((build) => build.duration)
+      .filter((duration): duration is number => typeof duration === "number" && Number.isFinite(duration));
+    const avgDuration = durations.length > 0
+      ? Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length)
+      : null;
 
-        const projectsData = await projectsRes.json();
-        const projects = Array.isArray(projectsData)
-          ? projectsData
-          : projectsData?.projects ?? [];
-
-        const projectIds = projects
-          .map((project: { id?: string | number; project_id?: string | number }) => project.id ?? project.project_id)
-          .filter(Boolean);
-
-        if (projectIds.length === 0) {
-          if (isActive) setTotalBuilds("—");
-          return;
-        }
-
-        const buildsResults = await Promise.allSettled(
-          projectIds.map((projectId: string | number) => request(`${apiBaseUrl}/project/${projectId}/builds`))
-        );
-
-        const buildsArrays = await Promise.all(
-          buildsResults
-            .filter((result): result is PromiseFulfilledResult<Response> => result.status === "fulfilled")
-            .map(async (result) => {
-              if (!result.value.ok) return [];
-              const data = await result.value.json();
-              if (Array.isArray(data?.builds)) return data.builds;
-              if (Array.isArray(data)) return data;
-              return [];
-            })
-        );
-
-        const builds = buildsArrays.flat();
-
-        if (isActive) {
-          const total = builds.length;
-          const successes = builds.filter((build: { status?: string }) => build.status === "success").length;
-          const successPct = total > 0 ? Math.round((successes / total) * 1000) / 10 : null;
-
-          const durations = builds
-            .map((build: { duration?: number }) => build.duration)
-            .filter((duration): duration is number => typeof duration === "number" && Number.isFinite(duration));
-          const avgDuration = durations.length > 0
-            ? Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length)
-            : null;
-
-          setTotalBuilds(String(total));
-          setSuccessRate(successPct === null ? "—" : `${successPct}%`);
-          setAvgBuildTime(avgDuration === null ? "—" : `${avgDuration}s`);
-        }
-      } catch {
-        if (isActive) {
-          setTotalBuilds("—");
-          setSuccessRate("—");
-          setAvgBuildTime("—");
-        }
-      }
+    return {
+      totalBuilds: String(total),
+      successRate: successPct === null ? "—" : `${successPct}%`,
+      avgBuildTime: avgDuration === null ? "—" : `${avgDuration}s`,
     };
-
-    loadBuildsCount();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  }, [builds, projects]);
 
   const cards = [
     {

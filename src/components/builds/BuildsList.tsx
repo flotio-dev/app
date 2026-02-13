@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -27,27 +27,88 @@ interface BuildsListProps {
   projectId?: string;
 }
 
+function extractBuilds(payload: unknown): APIBuild[] {
+  if (Array.isArray(payload)) {
+    return payload as APIBuild[];
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const data = payload as {
+    builds?: APIBuild[];
+    Builds?: APIBuild[];
+    data?: { builds?: APIBuild[]; Builds?: APIBuild[] };
+    details?: { builds?: APIBuild[]; Builds?: APIBuild[] };
+    project?: { builds?: APIBuild[]; Builds?: APIBuild[] };
+  };
+
+  return (
+    data.builds ||
+    data.Builds ||
+    data.data?.builds ||
+    data.data?.Builds ||
+    data.details?.builds ||
+    data.details?.Builds ||
+    data.project?.builds ||
+    data.project?.Builds ||
+    []
+  );
+}
+
 const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const theme = useTheme();
   const router = useRouter();
   const { request } = useApi();
   const [builds, setBuilds] = useState<APIBuild[]>([]);
+  const loadedProjectIdRef = useRef<string | null>(null);
+  const fetchingProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (projectId) {
-      const fetchBuilds = async () => {
-        try {
-          const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
-          if (response.ok) {
-            const data = await response.json();
-            setBuilds(data.builds || []);
-          }
-        } catch (error) {
-          console.error("Failed to fetch builds:", error);
-        }
-      };
-      fetchBuilds();
+    if (!projectId) {
+      setBuilds([]);
+      loadedProjectIdRef.current = null;
+      fetchingProjectIdRef.current = null;
+      return;
     }
+
+    if (
+      loadedProjectIdRef.current === projectId ||
+      fetchingProjectIdRef.current === projectId
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+    fetchingProjectIdRef.current = projectId;
+
+    const fetchBuilds = async () => {
+      try {
+        const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
+        if (!response.ok) throw new Error("Failed to fetch builds");
+        const data = await response.json();
+        if (isMounted) {
+          setBuilds(extractBuilds(data));
+          loadedProjectIdRef.current = projectId;
+        }
+      } catch (error) {
+        console.error("Failed to fetch builds:", error);
+      } finally {
+        if (fetchingProjectIdRef.current === projectId) {
+          fetchingProjectIdRef.current = null;
+        }
+      }
+    };
+
+    fetchBuilds();
+
+    return () => {
+      isMounted = false;
+      if (fetchingProjectIdRef.current === projectId) {
+        fetchingProjectIdRef.current = null;
+      }
+    };
   }, [projectId, request]);
 
   const getStatusColor = (status: string) => {

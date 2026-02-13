@@ -26,6 +26,7 @@ type APIProject = {
 	git_repo?: string | null;
 	git_username?: string | null;
 	updated_at?: string | null;
+    status?: string | null;
 };
 
 type ProjectRow = {
@@ -66,12 +67,54 @@ function extractProjects(payload: unknown): APIProject[] {
 	);
 }
 
-function StatusBadge({ status, color }: { status: string; color: string }) {
+function StatusBadge({ status }: { status: string }) {
+    const getStatusColor = (s: string) => {
+        switch (s?.toLowerCase()) {
+            case "success":
+                return { bg: "#d1fae5", text: "#047857", label: "Succès" };
+            case "failed":
+                return { bg: "#fee2e2", text: "#dc2626", label: "Échec" };
+            case "building":
+            case "running":
+                return { bg: "#fef3c7", text: "#d97706", label: "En cours" };
+            case "waiting":
+            case "pending":
+                return { bg: "#e0f2fe", text: "#0284c7", label: "En attente" };
+            default:
+                return { bg: "#f1f5f9", text: "#475569", label: s || "Aucun build" };
+        }
+    };
+
+    const { bg, text, label } = getStatusColor(status);
+
 	return (
-		<span style={{ background: color, color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
-			{status}
+		<span style={{ 
+			background: bg, 
+			color: text, 
+			padding: '0.25rem 0.75rem', 
+			borderRadius: '8px', 
+			fontSize: '0.75rem', 
+			fontWeight: 600,
+			display: 'inline-block',
+			minWidth: '120px',
+			textAlign: 'center'
+		}}>
+			{label}
 		</span>
 	);
+}
+
+function getStatusLabelForFilter(status: string) {
+    switch (status?.toLowerCase()) {
+        case "success": return "Succès";
+        case "failed": return "Échec";
+        case "building":
+        case "running": return "En cours";
+        case "waiting":
+        case "pending": return "En attente";
+        case "aucun build": return "Aucun build";
+        default: return status || "Aucun build";
+    }
 }
 
 export default function ListingProjects({ search }: ListingProjectsProps) {
@@ -111,16 +154,37 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 				});
 				if (!res.ok) throw new Error('Failed to fetch projects');
 				const data = await res.json();
+                
+                // Fetch last build status for each project
+                const projectsData = extractProjects(data);
+                const projectsWithStatus = await Promise.all(projectsData.map(async (p: APIProject) => {
+                    try {
+                        const buildsRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${p.id}/builds`);
+                        if(buildsRes.ok) {
+                            const buildsData = await buildsRes.json();
+                            // Access "builds" array exactly as specified in the response type
+                            if (buildsData && Array.isArray(buildsData.builds) && buildsData.builds.length > 0) {
+                                // Start by sorting builds by ID descending to get the very last one
+                                const sortedBuilds = buildsData.builds.sort((a: any, b: any) => b.id - a.id);
+                                return { ...p, status: sortedBuilds[0].status };
+                            }
+                        }
+                        return { ...p, status: null };
+                    } catch {
+                        return { ...p, status: null };
+                    }
+                }));
+
 				if (!isMounted) {
 					return;
 				}
 					setProjects(
-						extractProjects(data).map((p: APIProject): ProjectRow => ({
+						projectsWithStatus.map((p: APIProject): ProjectRow => ({
 							id: p.id,
 							name: p.name,
 							repoUrl: p.git_repo || '',
-							status: 'Healthy',
-							statusKey: 'success',
+							status: p.status || 'Aucun build',
+							statusKey: '',
 							icon: p.name ? p.name[0].toUpperCase() : '?',
 							lastDeployment: p.updated_at || '',
 							author: p.git_username || '',
@@ -139,12 +203,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 			isFetchingProjectsRef.current = false;
 		};
 	}, [request]);
-	const statusColors: Record<string, string> = {
-		success: theme.palette.success.main,
-		error: theme.palette.error.main,
-		warning: theme.palette.warning.main,
-		info: theme.palette.info.main,
-	};
+
 	const [statusFilter, setStatusFilter] = useState<string>("");
 	const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
 	const openStatusMenu = Boolean(statusAnchorEl);
@@ -218,7 +277,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 												selected={statusFilter === status}
 												onClick={() => { setStatusFilter(status); setStatusAnchorEl(null); }}
 											>
-												{status}
+												{getStatusLabelForFilter(status)}
 											</MenuItem>
 										))}
 									</Menu>
@@ -270,7 +329,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 									</div>
 								</td>
 								<td className="px-6 py-4">
-									<StatusBadge status={project.status} color={statusColors[project.statusKey] || theme.palette.info.main} />
+									<StatusBadge status={project.status} />
 								</td>
 								<td className="px-6 py-4" style={{ position: 'relative' }}>
 									<button className="p-2 rounded" style={{ background: 'none' }} onClick={e => { e.stopPropagation(); handleMenuOpen(project.id); }}>

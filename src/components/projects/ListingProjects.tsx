@@ -307,7 +307,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 									<span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontWeight: 700, fontSize: 18, background: theme.palette.primary.main, color: theme.palette.getContrastText(theme.palette.primary.main) }}>{project.icon}</span>
 									<div>
 										<div className="font-semibold text-base leading-tight">{project.name}</div>
-										<div className="text-xs" style={{ color: theme.palette.text.secondary }}>By {project.author}</div>
+										<div className="text-xs" style={{ color: theme.palette.text.secondary }}>{project.author}</div>
 									</div>
 								</td>
 								<td className="px-6 py-4">

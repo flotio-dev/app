@@ -1,10 +1,20 @@
 import { useAuth } from "@/auth/AuthContext";
 
+type RefreshResponse = {
+  access_token?: string;
+  refresh_token?: string;
+};
+
 export function useApi() {
   const { accessToken, setUserAndToken, clearAuth } = useAuth();
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
 
   const request = async (input: RequestInfo, init: RequestInit = {}) => {
-    let token = accessToken;
+    if (!apiBaseUrl) {
+      throw new Error("NEXT_PUBLIC_API_URL is not configured");
+    }
+
+    const token = accessToken;
 
     const fetchWithToken = async (t: string | null) =>
       fetch(input, {
@@ -17,17 +27,28 @@ export function useApi() {
 
     if (res.status === 401) {
       try {
-        const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+        const refreshRes = await fetch(`${apiBaseUrl}/auth/refresh`, {
           method: "POST",
           credentials: "include",
         });
 
         if (!refreshRes.ok) throw new Error("Unauthorized");
 
-        const data = await refreshRes.json();
+        const data = (await refreshRes.json()) as RefreshResponse;
         const newToken = data.access_token;
+        if (!newToken) {
+          throw new Error("Unauthorized");
+        }
 
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
+        if (data.refresh_token) {
+          await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: data.refresh_token }),
+          });
+        }
+
+        const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {
           headers: { Authorization: `Bearer ${newToken}` },
         });
 
@@ -39,7 +60,7 @@ export function useApi() {
         res = await fetchWithToken(newToken);
       } catch {
         clearAuth();
-        window.location.href = `${process.env.NEXT_PUBLIC_WEBSITE_URL}/auth/login`;
+        window.location.href = "/auth/login";
         throw new Error("Session expired");
       }
     }

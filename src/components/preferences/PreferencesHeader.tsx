@@ -16,12 +16,6 @@ const PreferencesHeader: React.FC = () => {
       <Typography variant="h5" fontWeight={700} mr={2} color={theme.palette.text.primary}>
         Preferences
       </Typography>
-      <Typography variant="h5" color={theme.palette.text.primary} mx={1}>
-        /
-      </Typography>
-      <Typography variant="subtitle1" color={theme.palette.text.primary}>
-        Personal account settings
-      </Typography>
     </Box>
   );
 };

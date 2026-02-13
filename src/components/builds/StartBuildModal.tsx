@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useApi } from '@/hooks/useApi';
 import {
   Dialog,
   DialogTitle,
@@ -10,11 +11,10 @@ import {
   Box,
   Typography,
   TextField,
-  Checkbox,
-  FormControlLabel,
   ToggleButtonGroup,
   ToggleButton,
   Stack,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 
@@ -30,7 +30,6 @@ interface BuildConfig {
   baseDirectory: string;
   platform: string;
   gitRef: string;
-  autoSubmit: boolean;
 }
 
 const StartBuildModal: React.FC<StartBuildModalProps> = ({
@@ -40,21 +39,58 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
   onStartBuild,
 }) => {
   const theme = useTheme();
-  const [environment, setEnvironment] = useState("DEFAULT");
+  const { request } = useApi();
+  const [environment, setEnvironment] = useState("release");
   const [baseDirectory, setBaseDirectory] = useState("/");
-  const [platform, setPlatform] = useState("ALL");
+  const [flutterChannel, setFlutterChannel] = useState("stable");
+  const [buildTarget, setBuildTarget] = useState("apk");
   const [gitRef, setGitRef] = useState("main");
-  const [autoSubmit, setAutoSubmit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleStartBuild = () => {
-    onStartBuild({
-      environment,
-      baseDirectory,
-      platform,
-      gitRef,
-      autoSubmit,
-    });
-    onClose();
+  const handleStartBuild = async () => {
+    if (!projectId) return;
+    setError(null);
+
+    try {
+      const payload = {
+        build_mode: environment.toLowerCase(),
+        build_target: buildTarget.toLowerCase(),
+        platform: "android",
+        git_branch: gitRef.toLowerCase(),
+        flutter_channel: flutterChannel.toLowerCase(),
+      };
+
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Build request failed:", res.status, errorText);
+        let errorMessage = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.message) errorMessage = errorJson.message;
+          else if (errorJson.error) errorMessage = errorJson.error;
+        } catch {
+          // Response body is not JSON, use raw text
+        }
+        throw new Error(errorMessage || `Failed to start build (Status: ${res.status})`);
+      }
+
+      onStartBuild({
+        environment,
+        baseDirectory,
+        platform: buildTarget,
+        gitRef,
+      });
+      onClose();
+    } catch (err: any) {
+      console.error("Error starting build:", err);
+      setError(err.message || "An unexpected error occurred");
+    }
   };
 
   return (
@@ -82,6 +118,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}>
+        {error && <Alert severity="error">{error}</Alert>}
         {/* Environment Selection */}
         <Box>
           <Typography
@@ -109,6 +146,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
             fullWidth
             size="small"
             sx={{
+              gap: 1,
               "& .MuiToggleButton-root": {
                 textTransform: "uppercase",
                 fontWeight: 600,
@@ -134,44 +172,10 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
               },
             }}
           >
-            <ToggleButton value="DEFAULT">Default</ToggleButton>
-            <ToggleButton value="PRODUCTION">Production</ToggleButton>
-            <ToggleButton value="DEVELOPMENT">Development</ToggleButton>
-            <ToggleButton value="PREVIEW">Preview</ToggleButton>
+            <ToggleButton value="RELEASE">Release</ToggleButton>
+            <ToggleButton value="DEBUG">Debug</ToggleButton>
+            <ToggleButton value="PROFILE">Profile</ToggleButton>
           </ToggleButtonGroup>
-        </Box>
-
-        {/* Auto Submit Checkbox */}
-        <Box
-          sx={{
-            padding: 1.5,
-            borderRadius: 1,
-            backgroundColor: theme.palette.action.hover,
-            border: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={autoSubmit}
-                onChange={(e) => setAutoSubmit(e.target.checked)}
-                sx={{
-                  color: theme.palette.primary.main,
-                }}
-              />
-            }
-            label={
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                Automatically submit to stores after building successfully
-              </Typography>
-            }
-            sx={{
-              "& .MuiFormControlLabel-label": {
-                fontSize: "0.875rem",
-              },
-              margin: 0,
-            }}
-          />
         </Box>
 
         {/* Build Configuration */}
@@ -192,35 +196,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
           </Typography>
 
           <Stack spacing={1.5}>
-            {/* Base Directory */}
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.5,
-                  fontWeight: 500,
-                }}
-              >
-                Base directory
-              </Typography>
-              <TextField
-                value={baseDirectory}
-                onChange={(e) => setBaseDirectory(e.target.value)}
-                fullWidth
-                size="small"
-                placeholder="/"
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1,
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Platform Selection */}
+            {/* Flutter Channel */}
             <Box>
               <Typography
                 variant="caption"
@@ -232,15 +208,15 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
                   fontWeight: 500,
                 }}
               >
-                Platform
+                Flutter Channel
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                {["ALL", "ANDROID"].map((p) => (
+                {["STABLE", "BETA", "DEV", "MASTER"].map((channel) => (
                   <Button
-                    key={p}
-                    variant={platform === p ? "contained" : "outlined"}
+                    key={channel}
+                    variant={flutterChannel === channel ? "contained" : "outlined"}
                     size="small"
-                    onClick={() => setPlatform(p)}
+                    onClick={() => setFlutterChannel(channel)}
                     sx={{
                       textTransform: "uppercase",
                       fontSize: "0.75rem",
@@ -249,22 +225,72 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
                       transition: "all 0.2s ease",
                       borderRadius: 1,
                       borderWidth: "1px",
-                      ...(platform === p
+                      ...(flutterChannel === channel
                         ? {
-                            backgroundColor: theme.palette.primary.main,
-                            borderColor: theme.palette.primary.main,
-                          }
+                          backgroundColor: theme.palette.primary.main,
+                          borderColor: theme.palette.primary.main,
+                        }
                         : {
-                            borderColor: theme.palette.divider,
-                            color: theme.palette.text.secondary,
-                            "&:hover": {
-                              borderColor: theme.palette.primary.main,
-                              backgroundColor: theme.palette.action.hover,
-                            },
-                          }),
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            borderColor: theme.palette.primary.main,
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }),
                     }}
                   >
-                    {p}
+                    {channel}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Build Target */}
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontSize: "0.75rem",
+                  color: theme.palette.text.secondary,
+                  marginBottom: 0.75,
+                  fontWeight: 500,
+                }}
+              >
+                Build Target
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                {["APK", "AAB"].map((target) => (
+                  <Button
+                    key={target}
+                    variant={buildTarget === target ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => setBuildTarget(target)}
+                    sx={{
+                      textTransform: "uppercase",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      flex: 1,
+                      transition: "all 0.2s ease",
+                      borderRadius: 1,
+                      borderWidth: "1px",
+                      ...(buildTarget === target
+                        ? {
+                          backgroundColor: theme.palette.primary.main,
+                          borderColor: theme.palette.primary.main,
+                        }
+                        : {
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            borderColor: theme.palette.primary.main,
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }),
+                    }}
+                  >
+                    {target}
                   </Button>
                 ))}
               </Box>

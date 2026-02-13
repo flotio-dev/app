@@ -43,13 +43,13 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
     fetchProject();
   }, [projectId, request]);
 
-  const handleStartBuild = (config: any) => {
-    console.log(
-      `Build started${projectId ? ` for project ${projectId}` : ""}:`,
-      config
-    );
-    // TODO: Add API call to start build
-    setOpenBuildModal(false);
+  const handleStartBuild = () => {
+    setOpenBuildModal(true);
+  };
+   
+  const handleModalStartBuild = async () => {
+      // The API call is now handled inside StartBuildModal
+      setOpenBuildModal(false);
   };
 
   return (
@@ -80,14 +80,14 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
             color="primary"
             size="medium"
             startIcon={<PlayArrowIcon />}
-            onClick={() => setOpenBuildModal(true)}
+            onClick={handleStartBuild}
             sx={{
               textTransform: "uppercase",
               fontWeight: 600,
               letterSpacing: "0.5px",
             }}
           >
-            Lancer un build
+            Start build
           </Button>
         </header>
         <div style={{ flex: 1, padding: 24 }}>{children}</div>
@@ -96,7 +96,7 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
         open={openBuildModal}
         projectId={projectId}
         onClose={() => setOpenBuildModal(false)}
-        onStartBuild={handleStartBuild}
+        onStartBuild={handleModalStartBuild}
       />
     </div>
   );

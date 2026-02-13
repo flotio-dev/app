@@ -1,11 +1,23 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { mockBuildsData } from "./mockBuildsData";
+import { useApi } from "@/hooks/useApi";
+
+interface APIBuild {
+  apk_url: string;
+  container_id: string;
+  created_at: string;
+  duration: number;
+  id: number;
+  platform: string;
+  project_id: number;
+  status: string;
+  updated_at: string;
+}
 
 interface BuildsOverviewProps {
   projectId?: string;
@@ -13,15 +25,39 @@ interface BuildsOverviewProps {
 
 const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
   const theme = useTheme();
+  const { request } = useApi();
+  const [totalBuilds, setTotalBuilds] = useState(0);
+  const [successBuilds, setSuccessBuilds] = useState(0);
+  const [failedBuilds, setFailedBuilds] = useState(0);
+  const [successRate, setSuccessRate] = useState(0);
 
-  const filteredBuilds = projectId
-    ? mockBuildsData.filter((build) => build.projectId === projectId)
-    : mockBuildsData;
+  useEffect(() => {
+    if (projectId) {
+      const fetchBuilds = async () => {
+        try {
+          const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
+          if (response.ok) {
+            const data = await response.json();
+            const builds: APIBuild[] = data.builds || [];
 
-  const totalBuilds = filteredBuilds.length;
-  const successBuilds = filteredBuilds.filter((build) => build.status === "success").length;
-  const failedBuilds = filteredBuilds.filter((build) => build.status === "failed").length;
-  const successRate = totalBuilds > 0 ? Math.round((successBuilds / totalBuilds) * 100) : 0;
+            const total = builds.length;
+            const success = builds.filter((build) => build.status.toLowerCase() === "success").length;
+            const failed = builds.filter((build) => build.status.toLowerCase() === "failed").length;
+            const rate = total > 0 ? Math.round((success / total) * 100) : 0;
+
+            setTotalBuilds(total);
+            setSuccessBuilds(success);
+            setFailedBuilds(failed);
+            setSuccessRate(rate);
+          }
+        } catch (error) {
+          console.error("Failed to fetch builds overview", error);
+        }
+      };
+
+      fetchBuilds();
+    }
+  }, [projectId, request]);
 
   return (
     <Paper

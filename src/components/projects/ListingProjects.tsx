@@ -1,6 +1,6 @@
 "use client";
 import { useTheme } from '@mui/material/styles';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
@@ -20,6 +20,52 @@ interface ListingProjectsProps {
 	search: string;
 }
 
+type APIProject = {
+	id: number;
+	name: string;
+	git_repo?: string | null;
+	git_username?: string | null;
+	updated_at?: string | null;
+};
+
+type ProjectRow = {
+	id: number;
+	name: string;
+	repoUrl: string;
+	status: string;
+	statusKey: string;
+	icon: string;
+	lastDeployment: string;
+	author: string;
+};
+
+function extractProjects(payload: unknown): APIProject[] {
+	if (Array.isArray(payload)) {
+		return payload as APIProject[];
+	}
+
+	if (!payload || typeof payload !== 'object') {
+		return [];
+	}
+
+	const data = payload as {
+		projects?: APIProject[];
+		Projects?: APIProject[];
+		data?: { projects?: APIProject[]; Projects?: APIProject[] };
+		details?: { projects?: APIProject[]; Projects?: APIProject[] };
+	};
+
+	return (
+		data.projects ||
+		data.Projects ||
+		data.data?.projects ||
+		data.data?.Projects ||
+		data.details?.projects ||
+		data.details?.Projects ||
+		[]
+	);
+}
+
 function StatusBadge({ status, color }: { status: string; color: string }) {
 	return (
 		<span style={{ background: color, color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
@@ -31,6 +77,9 @@ function StatusBadge({ status, color }: { status: string; color: string }) {
 export default function ListingProjects({ search }: ListingProjectsProps) {
 	const theme = useTheme();
 	const router = useRouter();
+	const { request } = useApi();
+	const hasLoadedProjectsRef = useRef(false);
+	const isFetchingProjectsRef = useRef(false);
 	const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 	useEffect(() => {
 		if (openMenuId === null) return;
@@ -43,11 +92,17 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 		document.addEventListener('mousedown', handleClick);
 		return () => document.removeEventListener('mousedown', handleClick);
 	}, [openMenuId]);
-	const [projects, setProjects] = useState<any[]>([]);
+	const [projects, setProjects] = useState<ProjectRow[]>([]);
 	const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-	const { request } = useApi();
 
 	useEffect(() => {
+		if (hasLoadedProjectsRef.current || isFetchingProjectsRef.current) {
+			return;
+		}
+
+		let isMounted = true;
+		isFetchingProjectsRef.current = true;
+
 		const fetchProjects = async () => {
 			try {
 				const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project`, {
@@ -56,24 +111,34 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 				});
 				if (!res.ok) throw new Error('Failed to fetch projects');
 				const data = await res.json();
-				setProjects(
-					(data.projects || []).map((p: any) => ({
-						id: p.id,
-						name: p.name,
-						repoUrl: p.git_repo,
-						status: 'Healthy',
-						statusKey: 'success',
-						icon: p.name ? p.name[0].toUpperCase() : '?',
-						lastDeployment: p.updated_at || '',
-						author: p.git_username || '',
-					}))
-				);
-			} catch (e) {
-				setProjects([]);
+				if (!isMounted) {
+					return;
+				}
+					setProjects(
+						extractProjects(data).map((p: APIProject): ProjectRow => ({
+							id: p.id,
+							name: p.name,
+							repoUrl: p.git_repo || '',
+							status: 'Healthy',
+							statusKey: 'success',
+							icon: p.name ? p.name[0].toUpperCase() : '?',
+							lastDeployment: p.updated_at || '',
+							author: p.git_username || '',
+						}))
+					);
+				hasLoadedProjectsRef.current = true;
+			} catch (error) {
+				console.error('Failed to fetch projects:', error);
+			} finally {
+				isFetchingProjectsRef.current = false;
 			}
 		};
 		fetchProjects();
-	}, []);
+		return () => {
+			isMounted = false;
+			isFetchingProjectsRef.current = false;
+		};
+	}, [request]);
 	const statusColors: Record<string, string> = {
 		success: theme.palette.success.main,
 		error: theme.palette.error.main,
@@ -105,7 +170,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
 			});
 			if (!res.ok) throw new Error('Failed to delete project');
 			setProjects(projects.filter(p => p.id !== id));
-		} catch (e) {
+		} catch {
 			// Optionally handle error (e.g., show a toast)
 		} finally {
 			setOpenMenuId(null);

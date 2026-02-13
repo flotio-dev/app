@@ -1,5 +1,6 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useApi } from '@/hooks/useApi';
 import GitHubIcon from "@mui/icons-material/GitHub";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -13,10 +14,43 @@ import { useTheme } from "@mui/material/styles";
 
 const GithubConnect: React.FC = () => {
   const theme = useTheme();
-  const GITHUB_AUTH_URL = process.env.NEXT_PUBLIC_GITHUB_AUTH_URL || "https://github.com/login/oauth/authorize";
+  const { request } = useApi();
+  const [hasInstallation, setHasInstallation] = useState<boolean | null>(null);
+  const GITHUB_INSTALL_URL = "https://github.com/apps/flotio-app/installations/new";
+
+  useEffect(() => {
+    const checkInstallation = async () => {
+      try {
+        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/installations`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error('Failed to check installation');
+        const data = await res.json();
+        console.log(data);
+        setHasInstallation(data.details && data.details.installation_id ? true : false);
+      } catch {
+        setHasInstallation(false);
+      }
+    };
+    checkInstallation();
+  }, [request]);
 
   const handleConnect = () => {
-    window.location.href = GITHUB_AUTH_URL;
+    window.location.href = GITHUB_INSTALL_URL;
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/disconnect`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Erreur lors de la déconnexion de GitHub');
+      setHasInstallation(false);
+    } catch (err) {
+      alert('Erreur lors de la déconnexion de GitHub');
+    }
   };
 
   return (
@@ -41,24 +75,29 @@ const GithubConnect: React.FC = () => {
             Connect your GitHub account to enable continuous integration and advanced features.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleConnect}
-          startIcon={<GitHubIcon />}
-          sx={{
-            px: 3,
-            py: 1.5,
-            fontWeight: 500,
-            fontSize: '0.95rem',
-            borderRadius: 1,
-            boxShadow: 'none',
-            textTransform: 'none',
-            ml: 2,
-          }}
-        >
-          Connect with GitHub
-        </Button>
+        {hasInstallation === null ? (
+          <Button disabled sx={{ ml: 2 }}>Loading...</Button>
+        ) : hasInstallation ? (
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDisconnect}
+            startIcon={<GitHubIcon />}
+            sx={{ px: 3, py: 1.5, fontWeight: 500, fontSize: '0.95rem', borderRadius: 1, boxShadow: 'none', textTransform: 'none', ml: 2 }}
+          >
+            Connected (Disconnect)
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleConnect}
+            startIcon={<GitHubIcon />}
+            sx={{ px: 3, py: 1.5, fontWeight: 500, fontSize: '0.95rem', borderRadius: 1, boxShadow: 'none', textTransform: 'none', ml: 2 }}
+          >
+            Connect with GitHub
+          </Button>
+        )}
       </Box>
     </Paper>
   );

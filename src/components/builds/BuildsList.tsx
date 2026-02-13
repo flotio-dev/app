@@ -22,6 +22,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import { useApi } from "@/hooks/useApi";
+import { useBuildRefresh } from "@/context/BuildRefreshContext";
 import { format, formatDuration, intervalToDuration } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -75,6 +76,7 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
   const theme = useTheme();
   const router = useRouter();
   const { request } = useApi();
+  const { subscribeToRefresh } = useBuildRefresh();
   const [builds, setBuilds] = useState<APIBuild[]>([]);
   const fetchingProjectIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -120,6 +122,17 @@ const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
       }
     }
   }, [projectId, request]);
+
+  // Subscribe to build refresh events
+  useEffect(() => {
+    if (!projectId) return;
+
+    const unsubscribe = subscribeToRefresh(projectId, () => {
+      fetchBuilds();
+    });
+
+    return unsubscribe;
+  }, [projectId, subscribeToRefresh, fetchBuilds]);
 
   useEffect(() => {
     fetchBuilds();

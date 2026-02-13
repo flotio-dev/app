@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useApi } from '@/hooks/useApi';
+import { useBuildRefresh } from '@/context/BuildRefreshContext';
 import {
   Dialog,
   DialogTitle,
@@ -40,6 +41,7 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
 }) => {
   const theme = useTheme();
   const { request } = useApi();
+  const { triggerRefresh } = useBuildRefresh();
   const [environment, setEnvironment] = useState("RELEASE");
   const [baseDirectory, setBaseDirectory] = useState("/");
   const [flutterChannel, setFlutterChannel] = useState("STABLE");
@@ -79,6 +81,9 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
         }
         throw new Error(errorMessage || `Failed to start build (Status: ${res.status})`);
       }
+
+      // Trigger immediate refresh of build list
+      triggerRefresh(projectId);
 
       onStartBuild({
         environment,

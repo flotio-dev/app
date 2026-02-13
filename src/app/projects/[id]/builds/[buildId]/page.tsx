@@ -39,7 +39,7 @@ export default function BuildDetailsPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const buildStatusRef = React.useRef<string>();
+  const buildStatusRef = React.useRef<string | undefined>();
 
   // Calculate elapsed time from build start date
   const calculateElapsedTime = (createdAt: string): number => {

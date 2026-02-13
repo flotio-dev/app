@@ -128,23 +128,23 @@ export default function BuildDetailsPage() {
           const data = await res.json();
           if (isMounted) {
             setLogs(data.logs || []);
-            
+
             // If building or running, poll for updates
             const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
             if (isRunning) {
               let currentLastLine = (data.logs || []).length;
-              
+
               pollInterval = setInterval(async () => {
                 if (!isMounted) return;
                 try {
                   const syncRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/logs/sync?last_line=${currentLastLine}`);
                   if (syncRes.ok) {
                     const syncData = await syncRes.json();
-                    
+
                     if (syncData.logs && syncData.logs.length > 0) {
                       setLogs(prev => [...prev, ...syncData.logs]);
                     }
-                    
+
                     if (typeof syncData.last_line === 'number') {
                       currentLastLine = syncData.last_line;
                     } else {
@@ -152,23 +152,32 @@ export default function BuildDetailsPage() {
                     }
 
                     // Update build status and duration if changed
-                    if (syncData.status || typeof syncData.elapsed_time === 'number') {
-                       setBuild(prev => {
-                          if (!prev) return null;
-                          const updated = { ...prev };
-                          let changed = false;
+                    if (syncData.status || typeof syncData.elapsed_time === 'number' || (syncData.logs && syncData.logs.length > 0)) {
+                      setBuild(prev => {
+                        if (!prev) return null;
+                        const updated = { ...prev };
+                        let changed = false;
 
-                          if (syncData.status && syncData.status !== prev.status) {
-                             updated.status = syncData.status;
-                             changed = true;
-                          }
-                          if (typeof syncData.elapsed_time === 'number' && syncData.elapsed_time !== prev.duration) {
-                             updated.duration = syncData.elapsed_time;
-                             changed = true;
-                          }
-                          
-                          return changed ? updated : prev;
-                       });
+                        if (syncData.status && syncData.status !== prev.status) {
+                          updated.status = syncData.status;
+                          changed = true;
+                        }
+
+                        // If logs are appearing and status is pending, change to running
+                        if (syncData.logs && syncData.logs.length > 0 && prev.status.toLowerCase() === "pending") {
+                          updated.status = "running";
+                          changed = true;
+                        }
+
+                        // Only update duration if build is still running
+                        const isBuildRunning = ["building", "running", "pending"].includes(prev.status.toLowerCase());
+                        if (isBuildRunning && typeof syncData.elapsed_time === 'number') {
+                          updated.duration = syncData.elapsed_time;
+                          changed = true;
+                        }
+
+                        return changed ? updated : prev;
+                      });
                     }
                   }
                 } catch (error) {

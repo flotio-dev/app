@@ -24,7 +24,7 @@ COPY . .
 ENV NEXT_PUBLIC_API_URL=https://api.flotio.ovh
 ENV NEXT_PUBLIC_WEBSITE_URL=https://flotio.ovh
 
-ENV APP_ID=flotio-app-prod
+ENV NEXT_PUBLIC_APP_ID=flotio-app-prod
 
 
 # Next.js collects completely anonymous telemetry data about general usage.

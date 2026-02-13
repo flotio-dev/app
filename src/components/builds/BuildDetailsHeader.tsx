@@ -27,7 +27,6 @@ interface BuildDetailsHeaderProps {
   branch: string;
   message: string;
   startTime?: string;
-  duration?: number;
   repoUrl?: string;
   apkUrl?: string | null;
 }
@@ -39,7 +38,6 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
   branch,
   message,
   startTime,
-  duration,
   repoUrl,
   apkUrl
 }) => {
@@ -56,15 +54,6 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
 
   const isRunning = ["building", "pending", "running"].includes(status.toLowerCase());
   const isSuccess = status.toLowerCase() === "success";
-
-  // Format duration in seconds to HH:MM:SS
-  const formatDuration = (seconds?: number): string => {
-    if (!seconds) return "-";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
 
   const handleDownload = async () => {
     if (!projectId || !buildId) return;
@@ -279,14 +268,6 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
               </Typography>
             </Box>
           )}
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              DURÉE
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {formatDuration(duration)}
-            </Typography>
-          </Box>
         </Box>
       </Paper>
 

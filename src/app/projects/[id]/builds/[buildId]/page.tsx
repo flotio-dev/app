@@ -230,13 +230,30 @@ export default function BuildDetailsPage() {
                     }
 
                     // Update build status from sync response
-                    if (syncData.status && isMounted) {
-                      setBuild(prev => prev ? { ...prev, status: syncData.status } : null);
+                    if (isMounted) {
+                      setBuild(prev => {
+                        if (!prev) return null;
+                        let newStatus = prev.status;
+
+                        // If logs are appearing and status is pending, change to running
+                        if (syncData.logs && syncData.logs.length > 0 && prev.status.toLowerCase() === "pending") {
+                          newStatus = "running";
+                        } else if (syncData.status) {
+                          // Otherwise use status from sync response if available
+                          newStatus = syncData.status;
+                        }
+
+                        return newStatus !== prev.status ? { ...prev, status: newStatus } : prev;
+                      });
                     }
 
                     // Update elapsed time from sync response
                     if (typeof syncData.elapsed_time === 'number' && isMounted) {
-                      setElapsedTime(syncData.elapsed_time);
+                      // Only update elapsed time if build is still running
+                      const isStillRunning = ["building", "running", "pending"].includes(prev?.status.toLowerCase() || "");
+                      if (isStillRunning) {
+                        setElapsedTime(syncData.elapsed_time);
+                      }
                     }
                   }
                 } catch (error) {
@@ -254,11 +271,17 @@ export default function BuildDetailsPage() {
     fetchLogs();
 
     // Timer for real-time elapsed time display (only if build is running)
-    const isRunning = ["building", "running", "pending"].includes(build.status.toLowerCase());
-    if (isRunning) {
+    if (build) {
       timerInterval = setInterval(() => {
         if (isMounted) {
-          setElapsedTime(prev => prev + 1);
+          setBuild(prev => {
+            if (!prev) return null;
+            const isStillRunning = ["building", "running", "pending"].includes(prev.status.toLowerCase());
+            if (isStillRunning) {
+              setElapsedTime(t => t + 1);
+            }
+            return prev;
+          });
         }
       }, 1000);
     }

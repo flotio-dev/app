@@ -109,14 +109,14 @@ function StatusBadge({ status }: { status: string }) {
 
 function getStatusLabelForFilter(status: string) {
 	switch (status?.toLowerCase()) {
-		case "success": return "Succès";
-		case "failed": return "Échec";
+		case "success": return "Success";
+		case "failed": return "Failed";
 		case "building":
-		case "running": return "En cours";
+		case "running": return "Running";
 		case "waiting":
-		case "pending": return "En attente";
-		case "aucun build": return "Aucun build";
-		default: return status || "Aucun build";
+		case "pending": return "Waiting/Pending";
+		case "aucun build": return "Any build";
+		default: return status || "Any build";
 	}
 }
 

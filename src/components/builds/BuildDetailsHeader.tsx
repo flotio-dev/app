@@ -39,6 +39,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
   branch,
   message,
   startTime,
+  duration,
   repoUrl,
   apkUrl
 }) => {
@@ -55,6 +56,15 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
 
   const isRunning = ["building", "pending", "running"].includes(status.toLowerCase());
   const isSuccess = status.toLowerCase() === "success";
+
+  // Format duration in seconds to HH:MM:SS
+  const formatDuration = (seconds?: number): string => {
+    if (!seconds) return "-";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   const handleDownload = async () => {
     if (!projectId || !buildId) return;
@@ -118,7 +128,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
       );
 
       if (response.ok) {
-        window.location.reload(); 
+        window.location.reload();
       } else {
         alert("Erreur lors de l'annulation du build");
       }
@@ -191,7 +201,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
                 Visit Repository
               </Button>
             )}
-            
+
             {/* Cancel Build - Orange if Running */}
             {isRunning && (
               <Button
@@ -269,6 +279,14 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
               </Typography>
             </Box>
           )}
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              DURÉE
+            </Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {formatDuration(duration)}
+            </Typography>
+          </Box>
         </Box>
       </Paper>
 
@@ -287,11 +305,11 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
           <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained" 
-            autoFocus 
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            autoFocus
             disabled={isDeleting}
           >
             {isDeleting ? "Deleting..." : "Delete"}
@@ -300,7 +318,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
       </Dialog>
 
       {/* Cancel Dialog */}
-       <Dialog
+      <Dialog
         open={cancelDialogOpen}
         onClose={() => setCancelDialogOpen(false)}
       >
@@ -314,11 +332,11 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
           <Button onClick={() => setCancelDialogOpen(false)} color="primary">
             Back
           </Button>
-          <Button 
-            onClick={handleCancelConfirm} 
-            color="warning" 
-            variant="contained" 
-            autoFocus 
+          <Button
+            onClick={handleCancelConfirm}
+            color="warning"
+            variant="contained"
+            autoFocus
             disabled={isCanceling}
           >
             {isCanceling ? "Canceling..." : "Cancel Build"}

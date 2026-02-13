@@ -61,6 +61,11 @@ export function useApi() {
         res = await fetchWithToken(newToken);
       } catch {
         clearAuth();
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+          // Ignore logout failures and continue redirect.
+        }
         window.location.href = "/auth/login";
         throw new Error("Session expired");
       }

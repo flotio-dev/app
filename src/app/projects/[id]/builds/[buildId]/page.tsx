@@ -250,10 +250,14 @@ export default function BuildDetailsPage() {
                     // Update elapsed time from sync response
                     if (typeof syncData.elapsed_time === 'number' && isMounted) {
                       // Only update elapsed time if build is still running
-                      const isStillRunning = ["building", "running", "pending"].includes(prev?.status.toLowerCase() || "");
-                      if (isStillRunning) {
-                        setElapsedTime(syncData.elapsed_time);
-                      }
+                      setBuild(prev => {
+                        if (!prev) return null;
+                        const isStillRunning = ["building", "running", "pending"].includes(prev.status.toLowerCase());
+                        if (isStillRunning) {
+                          setElapsedTime(syncData.elapsed_time);
+                        }
+                        return prev;
+                      });
                     }
                   }
                 } catch (error) {

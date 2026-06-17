@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
 import { useTheme } from "@mui/material/styles";
+import { useParams } from "next/navigation";
 import ProjectKeyStoreCard from "./ProjectKeyStoreCard";
 import ProjectEnvironmentVariablesCard from "./ProjectEnvironmentVariablesCard";
 import { EnvironmentVariable, KeyStoreState } from "./projectConfiguration.types";
@@ -25,10 +26,9 @@ const defaultKeyStore: KeyStoreState = {
 
 const ProjectConfigurationContent: React.FC = () => {
   const theme = useTheme();
-  const [keyStore, setKeyStore] = useState<KeyStoreState>(defaultKeyStore);
   const [variables, setVariables] = useState<EnvironmentVariable[]>([createVariable()]);
-
-  const hasKeystore = Boolean(keyStore.file);
+  const params = useParams();
+  const projectId = params.id as string | undefined;
 
   const canSave = useMemo(() => {
     const keys = variables.map((variable) => variable.key.trim()).filter(Boolean);
@@ -42,9 +42,7 @@ const ProjectConfigurationContent: React.FC = () => {
   };
 
   const handleSaveDraft = () => {
-    // Front-only: aucun appel API ici.
-    // Les états restent en mémoire dans la page.
-    console.log("Draft configuration:", { keyStore, variables });
+    console.log("Draft configuration:", { variables });
   };
 
   return (
@@ -65,24 +63,18 @@ const ProjectConfigurationContent: React.FC = () => {
 
         <Box display="flex" flexDirection="column" gap={3} width="100%">
           <Box sx={{ width: '100%' }}>
-            <ProjectKeyStoreCard value={keyStore} onChange={setKeyStore} />
+            <ProjectKeyStoreCard projectId={projectId} />
           </Box>
           <Box sx={{ width: '100%' }}>
             <ProjectEnvironmentVariablesCard
+              projectId={projectId}
               variables={variables}
               onAdd={addVariable}
               onChange={setVariables}
+              onSave={handleSaveDraft}
+              canSave={canSave}
             />
           </Box>
-        </Box>
-
-        <Box display="flex" justifyContent="flex-end" gap={2}>
-          <Button variant="outlined" onClick={() => setKeyStore(defaultKeyStore)}>
-            Reset KeyStore
-          </Button>
-          <Button variant="contained" onClick={handleSaveDraft} disabled={!canSave}>
-            Save changes
-          </Button>
         </Box>
       </Box>
     </Box>

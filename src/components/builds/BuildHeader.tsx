@@ -29,13 +29,13 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
     const fetchProject = async () => {
       if (!projectId) return;
       try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`, {
+        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
-        if (!res.ok) throw new Error('Failed to fetch project');
+        if (!res.ok) throw new Error('Failed to fetch project config');
         const data = await res.json();
-        setProjectName(data.project?.name || projectId);
+        setProjectName(data.project?.name || data.config?.project_path || projectId);
       } catch {
         setProjectName(projectId);
       }

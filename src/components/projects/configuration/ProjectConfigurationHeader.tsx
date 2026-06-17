@@ -8,7 +8,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import SideMenu from "@/components/common/SideMenu";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import { useApi } from "@/hooks/useApi";
+import { useProjectConfig } from '@/context/ProjectConfigContext';
 
 interface ProjectConfigurationHeaderProps {
   children: React.ReactNode;
@@ -17,26 +17,12 @@ interface ProjectConfigurationHeaderProps {
 const ProjectConfigurationHeader: React.FC<ProjectConfigurationHeaderProps> = ({ children }) => {
   const theme = useTheme();
   const params = useParams();
-  const { request } = useApi();
   const [projectName, setProjectName] = useState<string>("");
+  const { project, config } = useProjectConfig();
 
   useEffect(() => {
-    const fetchProject = async () => {
-      const projectId = params.id as string | undefined;
-      if (!projectId) return;
-
-      try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`);
-        if (!res.ok) throw new Error("Failed to fetch project");
-        const data = await res.json();
-        setProjectName(data.project?.name || projectId);
-      } catch {
-        setProjectName(projectId);
-      }
-    };
-
-    fetchProject();
-  }, [params.id, request]);
+    setProjectName(project?.name || config?.project_path || (params.id as string | undefined) || '');
+  }, [project, config, params.id]);
 
   const projectId = params.id as string | undefined;
 

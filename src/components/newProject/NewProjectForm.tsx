@@ -13,6 +13,8 @@ import Button from "@mui/material/Button";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Paper from "@mui/material/Paper";
+import FormHelperText from "@mui/material/FormHelperText";
+import Chip from "@mui/material/Chip";
 import { useTheme } from "@mui/material/styles";
 import Stepper from "@mui/material/Stepper";
 import Step from "@mui/material/Step";
@@ -21,11 +23,18 @@ import StepLabel from "@mui/material/StepLabel";
 
 const steps = ["Project", "Git", "Review"];
 
+type FlutterVersionOption = {
+  channel: string;
+  version: string;
+};
+
 const NewProjectForm: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [name, setName] = useState("");
   const [buildFolder, setBuildFolder] = useState(".");
   const [flutterVersion, setFlutterVersion] = useState("3.19.0");
+  const [flutterVersions, setFlutterVersions] = useState<FlutterVersionOption[]>([]);
+  const [loadingFlutterVersions, setLoadingFlutterVersions] = useState(false);
   
   // Git state
   const [gitSource, setGitSource] = useState<"github" | "external">("github");
@@ -40,6 +49,44 @@ const NewProjectForm: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const { request } = useApi();
   const router = useRouter();
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const fetchFlutterVersions = async () => {
+      setLoadingFlutterVersions(true);
+      try {
+        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/flutter/versions`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const versions = Array.isArray(data?.versions)
+          ? data.versions.filter((item: any) => item?.version)
+          : [];
+
+        if (!cancelled) {
+          setFlutterVersions(versions);
+
+          const currentExists = versions.some((item: FlutterVersionOption) => item.version === flutterVersion);
+          if (!currentExists && versions.length > 0) {
+            setFlutterVersion(versions[0].version);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch flutter versions", err);
+      } finally {
+        if (!cancelled) {
+          setLoadingFlutterVersions(false);
+        }
+      }
+    };
+
+    fetchFlutterVersions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [request]);
 
   // Fetch repos when entering step 1 (Git)
   React.useEffect(() => {
@@ -86,12 +133,19 @@ const NewProjectForm: React.FC = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            name,
             build_folder: buildFolder,
             flutter_version: flutterVersion,
             git_repo: gitRepo,
             git_token: gitToken,
             git_username: gitUsername,
-            name,
+            config: {
+              project_path: buildFolder,
+              flutter_version: flutterVersion,
+              git_repo: gitRepo,
+              git_token: gitToken,
+              git_username: gitUsername,
+            },
           }),
         }
       );
@@ -130,7 +184,43 @@ const NewProjectForm: React.FC = () => {
           <Typography variant="h6" fontWeight={700} mb={2}>Project Information</Typography>
           <TextField label="Project Name" value={name} onChange={e => setName(e.target.value)} fullWidth sx={{ mb: 2 }} required />
           <TextField label="Build Folder (build_folder)" value={buildFolder} onChange={e => setBuildFolder(e.target.value)} fullWidth sx={{ mb: 2 }} required />
-          <TextField label="Flutter Version (flutter_version)" value={flutterVersion} onChange={e => setFlutterVersion(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <FormControl fullWidth required sx={{ mb: 2 }}>
+            <InputLabel id="flutter-version-label">Flutter Version (flutter_version)</InputLabel>
+            <Select
+              labelId="flutter-version-label"
+              value={flutterVersion}
+              label="Flutter Version (flutter_version)"
+              onChange={(e) => setFlutterVersion(e.target.value)}
+              disabled={loadingFlutterVersions}
+              renderValue={(value) => {
+                const selected = flutterVersions.find((item) => item.version === value);
+                return (
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", pr: 1 }}>
+                    <Typography fontWeight={600}>{value}</Typography>
+                    {selected?.channel && <Chip size="small" label={selected.channel} />}
+                  </Box>
+                );
+              }}
+            >
+              {loadingFlutterVersions ? (
+                <MenuItem disabled value="">Loading...</MenuItem>
+              ) : flutterVersions.length > 0 ? (
+                flutterVersions.map((item) => (
+                  <MenuItem key={`${item.channel}-${item.version}`} value={item.version}>
+                    <Box sx={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+                      <Typography fontWeight={600}>{item.version}</Typography>
+                      <Chip size="small" label={item.channel} />
+                    </Box>
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value={flutterVersion}>{flutterVersion}</MenuItem>
+              )}
+            </Select>
+            <FormHelperText>
+              Choisis une version disponible depuis l’API Flutter.
+            </FormHelperText>
+          </FormControl>
         </Box>
       )}
       {activeStep === 1 && (

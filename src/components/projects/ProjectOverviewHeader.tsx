@@ -8,6 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useApi } from '@/hooks/useApi';
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import { useProjectConfig } from '@/context/ProjectConfigContext';
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
 
@@ -28,47 +29,39 @@ const ProjectsHeader: React.FC = () => {
 	const router = useRouter();
 	const params = useParams();
 	const { request } = useApi();
+	const { project, config } = useProjectConfig();
 	const [projectName, setProjectName] = useState<string>("");
 	const [latestSuccessBuild, setLatestSuccessBuild] = useState<any>(null);
 
 	useEffect(() => {
+		setProjectName(project?.name || config?.project_path || '');
+
 		const projectId = params.id;
 		if (!projectId) return;
 
-		const fetchProjectData = async () => {
+		const fetchBuilds = async () => {
 			try {
-				// Fetch project details
-				const projectRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`);
-				if (projectRes.ok) {
-					const projectData = await projectRes.json();
-					setProjectName(projectData.project?.name || '');
-				}
-
-				// Fetch builds to find the latest successful one
 				const buildsRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
 				if (buildsRes.ok) {
 					const buildsData = await buildsRes.json();
 					const builds = buildsData.builds || [];
-					
-					// Sort by date descending
-					const sortedBuilds = builds.sort((a: any, b: any) => 
+					const sortedBuilds = builds.sort((a: any, b: any) =>
 						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 					);
-
 					if (sortedBuilds.length > 0) {
 						const lastBuild = sortedBuilds[0];
-						if (lastBuild.status.toLowerCase() === 'success') {
+						if (lastBuild.status?.toLowerCase() === 'success') {
 							setLatestSuccessBuild(lastBuild);
 						}
 					}
 				}
 			} catch (error) {
-				console.error("Error fetching project data:", error);
+				console.error("Error fetching builds:", error);
 			}
 		};
 
-		fetchProjectData();
-	}, [params.id, request]);
+		void fetchBuilds();
+	}, [params.id, request, project, config]);
 
 	const handleDownload = async () => {
 		if (!latestSuccessBuild || !params.id) {

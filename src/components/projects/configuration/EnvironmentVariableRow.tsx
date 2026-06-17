@@ -29,7 +29,7 @@ const EnvironmentVariableRow: React.FC<EnvironmentVariableRowProps> = ({
     <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "1fr 1fr auto" }} gap={2} alignItems="start">
       <TextField
         label="Key"
-        value={variable.key}
+        value={variable.key ?? ""}
         error={Boolean(keyError)}
         helperText={keyError || "Unique key required"}
         onChange={(event) => onChange({ ...variable, key: event.target.value })}
@@ -38,7 +38,7 @@ const EnvironmentVariableRow: React.FC<EnvironmentVariableRowProps> = ({
       />
       <TextField
         label="Value"
-        value={variable.value}
+        value={variable.value ?? ""}
         onChange={(event) => onChange({ ...variable, value: event.target.value })}
         size="small"
         fullWidth

@@ -7,6 +7,11 @@ export type KeyStoreState = {
 
 export type EnvironmentVariable = {
   id: string;
+  apiId?: number;
   key: string;
   value: string;
+  type?: string;
+  path?: string;
+  isBase64?: boolean;
+  projectId?: number;
 };

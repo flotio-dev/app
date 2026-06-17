@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useParams } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
+import { useProjectConfig } from '@/context/ProjectConfigContext';
 import GitHubIcon from '@mui/icons-material/GitHub';
 
 const ProjectGitDatas: React.FC = () => {
@@ -16,27 +17,21 @@ const ProjectGitDatas: React.FC = () => {
   const [project, setProject] = useState<any>(null);
   const params = useParams();
   const { request } = useApi();
+  const { project: ctxProject, config } = useProjectConfig();
 
   useEffect(() => {
-    const fetchProject = async () => {
-      if (!params.id) return;
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${params.id}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+    if (!ctxProject && !config) return;
+    const payloadProject = ctxProject || (config ? { ...config, config, id: params.id } : null);
+    if (payloadProject) {
+      setProject(payloadProject);
+      setForm({
+        gitUsername: payloadProject.git_username || payloadProject.config?.git_username || '',
+        repoUrl: payloadProject.git_repo || payloadProject.config?.git_repo || '',
+        gitToken: payloadProject.git_token || payloadProject.config?.git_token || '',
       });
-      if (res.ok) {
-        const data = await res.json();
-        setProject(data.project);
-        setForm({
-          gitUsername: data.project.git_username || '',
-          repoUrl: data.project.git_repo || '',
-          gitToken: data.project.git_token || '',
-        });
-      }
-    };
-    fetchProject();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [ctxProject, config]);
 
   const handleChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -46,21 +41,27 @@ const ProjectGitDatas: React.FC = () => {
   const handleSave = async () => {
     if (!project) return;
     try {
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${project.id}`, {
-        method: 'PUT',
+      const currentConfig = project.config || {};
+      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${project.id}/config`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          build_folder: project.build_folder,
-          flutter_version: project.flutter_version,
+          ...currentConfig,
           git_repo: form.repoUrl,
           git_token: form.gitToken,
           git_username: form.gitUsername,
-          name: project.name,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        setProject(data.project || { ...project, ...form });
+        const nextConfig = data.config || data || { ...currentConfig, git_repo: form.repoUrl, git_token: form.gitToken, git_username: form.gitUsername };
+        setProject({
+          ...project,
+          config: nextConfig,
+          git_repo: nextConfig.git_repo ?? form.repoUrl,
+          git_token: nextConfig.git_token ?? form.gitToken,
+          git_username: nextConfig.git_username ?? form.gitUsername,
+        });
         setEditMode(false);
       }
     } catch (e) {
@@ -85,10 +86,24 @@ const ProjectGitDatas: React.FC = () => {
               <TextField
                 fullWidth
                 size="small"
-                value={editMode ? form.gitUsername : project.git_username}
+                value={form.gitUsername}
                 InputProps={{ readOnly: !editMode }}
                 sx={{ input: { color: theme.palette.text.primary } }}
                 onChange={e => handleChange('gitUsername', e.target.value)}
+              />
+            </Box>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography variant="body2" fontWeight={600} color={theme.palette.text.secondary} minWidth={120}>
+                Git Token
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type={editMode ? 'text' : 'password'}
+                value={editMode ? form.gitToken : (form.gitToken ? '••••••••' : '')}
+                InputProps={{ readOnly: !editMode }}
+                sx={{ input: { color: theme.palette.text.primary } }}
+                onChange={e => handleChange('gitToken', e.target.value)}
               />
             </Box>
             <Box display="flex" alignItems="center" gap={2}>
@@ -98,7 +113,7 @@ const ProjectGitDatas: React.FC = () => {
               <TextField
                 fullWidth
                 size="small"
-                value={editMode ? form.repoUrl : project.git_repo}
+                value={form.repoUrl}
                 InputProps={{ readOnly: !editMode }}
                 sx={{ input: { color: theme.palette.text.primary } }}
                 onChange={e => handleChange('repoUrl', e.target.value)}

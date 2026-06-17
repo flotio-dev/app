@@ -49,11 +49,17 @@ function SideMenu() {
 
   React.useEffect(() => {
     let mounted = true;
-    if (projects && projects.length > 0) return;
+    let fetchedAlready = false;
+
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
     if (!apiBaseUrl) return;
 
-    (async () => {
+    const doFetch = async () => {
+      // If dashboard already provides projects, don't fetch
+      if (projects && projects.length > 0) return;
+      if (fetchedAlready) return;
+      fetchedAlready = true;
+
       try {
         const res = await request(`${apiBaseUrl}/project`);
         if (!res.ok) return;
@@ -65,10 +71,13 @@ function SideMenu() {
       } catch (e) {
         // ignore
       }
-    })();
+    };
+
+    // Run once on mount only to avoid re-fetching when `request` identity changes
+    doFetch();
 
     return () => { mounted = false; };
-  }, [projects, request]);
+  }, []);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

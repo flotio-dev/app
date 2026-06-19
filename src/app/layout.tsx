@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeModeProvider } from "@/components/preferences/ThemeModeProvider";
 import { AuthProvider } from "@/auth/AuthContext";
 import { BuildRefreshProvider } from "@/context/BuildRefreshContext";
+import { CliModalProvider } from "@/context/CliModalContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({
         <ThemeModeProvider>
           <AuthProvider>
             <BuildRefreshProvider>
-              {children}
+              <CliModalProvider>
+                {children}
+              </CliModalProvider>
             </BuildRefreshProvider>
           </AuthProvider>
         </ThemeModeProvider>

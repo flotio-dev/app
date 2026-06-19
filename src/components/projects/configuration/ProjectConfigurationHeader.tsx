@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import SideMenu from "@/components/common/SideMenu";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { useProjectConfig } from '@/context/ProjectConfigContext';
+import BoutonCLI from "@/components/common/BoutonCLI";
 
 interface ProjectConfigurationHeaderProps {
   children: React.ReactNode;
@@ -33,7 +34,7 @@ const ProjectConfigurationHeader: React.FC<ProjectConfigurationHeaderProps> = ({
       </div>
       <main className="flex-1 flex flex-col min-h-screen" style={{ paddingLeft: 256 }}>
         <header
-          className="h-16 flex items-center px-6"
+          className="h-16 flex items-center justify-between px-6"
           style={{ borderBottom: `1px solid ${theme.palette.divider}` }}
         >
           <Typography
@@ -55,6 +56,7 @@ const ProjectConfigurationHeader: React.FC<ProjectConfigurationHeaderProps> = ({
             <ArrowForwardIosIcon sx={{ fontSize: 20, verticalAlign: "middle" }} />
             <span>Configuration</span>
           </Typography>
+          <BoutonCLI />
         </header>
         <div style={{ flex: 1, padding: 24 }}>{children}</div>
       </main>

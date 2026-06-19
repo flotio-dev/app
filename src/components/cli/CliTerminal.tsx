@@ -6,62 +6,68 @@ import { useAuth } from '@/auth/AuthContext';
 import { useCliModal } from '@/context/CliModalContext';
 import { useRouter } from 'next/navigation';
 
-const HELP_TEXT = `Flotio CLI is a command-line tool for managing Flotio cloud infrastructure,
-deploying projects, and interacting with the Flotio platform.
+const HELP_COMMANDS = [
+  { command: "build start <project-id> [--platform android] [--mode release] [--branch main]", description: "Start a build" },
+  { command: "build list <project-id>", description: "List project builds" },
+  { command: "build show <build-id>", description: "Show build details" },
+  { command: "build logs <build-id>", description: "Show build logs" },
+  { command: "completion <bash|zsh|fish|powershell>", description: "Generate shell autocompletion" },
+  { command: "config get <key>", description: "Read a config value" },
+  { command: "config set <key> <value>", description: "Update a config value" },
+  { command: "config list", description: "List config values" },
+  { command: "configure [--host <url>]", description: "Configure Flotio CLI defaults" },
+  { command: 'create project "<name>" [--repo <git-url>]', description: "Create a project" },
+  { command: "select project <name-or-id>", description: "Select a project" },
+  { command: "env list <project-id>", description: "List environment variables and files" },
+  { command: "env create <key> <value> [--type env|file] [--path <path>]", description: "Create an environment value" },
+  { command: "env update <id> <value> [--type env|file] [--path <path>]", description: "Update an environment value" },
+  { command: "env delete <id>", description: "Delete an environment value" },
+  { command: "flutter", description: "Show Flutter version info" },
+  { command: "github status", description: "Show GitHub integration status" },
+  { command: "github connect", description: "Connect GitHub integration" },
+  { command: "github disconnect", description: "Disconnect GitHub integration" },
+  { command: "github repos", description: "List GitHub repositories" },
+  { command: "help [command]", description: "Show command help" },
+  { command: "keystore list", description: "List signing keystores" },
+  { command: 'keystore create "<name>" --file <keystore.jks> --alias <alias>', description: "Create a signing keystore" },
+  { command: "keystore delete <keystore-id>", description: "Delete a signing keystore" },
+  { command: "keystore attach <project-id> <keystore-id>", description: "Attach a keystore to a project" },
+  { command: "keystore detach <project-id>", description: "Detach the project keystore" },
+  { command: "logout", description: "Log out from Flotio" },
+  { command: "play list", description: "List Google Play credentials" },
+  { command: 'play create "<name>" --file <service-account.json>', description: "Create Google Play credentials" },
+  { command: "play delete <credential-id>", description: "Delete Google Play credentials" },
+  { command: "play attach <project-id> <credential-id>", description: "Attach Play credentials to a project" },
+  { command: "play detach <project-id>", description: "Detach Play credentials from a project" },
+  { command: "project list", description: "List projects" },
+  { command: "project show <project-id>", description: "Show project details" },
+  { command: 'project create "<name>" [--repo <git-url>]', description: "Create a project" },
+  { command: "project delete <project-id>", description: "Delete a project" },
+  { command: "project config <project-id>", description: "Show project configuration" },
+  { command: "project config set <project-id> <key> <value>", description: "Update project configuration" },
+  { command: "update", description: "Update flotio to the latest version" },
+  { command: "version", description: "Print version information" },
+  { command: "whoami", description: "Show the current authenticated user" },
+];
 
-Getting started:
-
-  flotio project list
-  flotio build start <project-id> --platform android --mode release
-
-Use "flotio <command> --help" for details on any command.
-
-Usage:
-  flotio [command]
-
-Examples:
-  # List your projects
-  flotio project list
-
-  # Create a project and select it
-  flotio create project "My App" --repo https://github.com/user/repo
-  flotio select project "My App"
-  flotio build start 1 --branch main --platform android --mode release
-
-  # Manage signing keys
-  flotio keystore create "release" --file keystore.jks --alias mykey
-
-  # Manage Google Play credentials
-  flotio play create "play-store" --file service-account.json
-
-  # Manage environment variables
-  flotio env create DATABASE_URL "postgres://..." --type env
-
-Available Commands:
-  build       Manage builds
-  completion  Generate the autocompletion script for the specified shell
-  config      Manage project configuration
-  configure   Configure Flotio CLI defaults
-  create      Create a project
-  select      Select a project
-  env         Manage environment variables and files
-  flutter     Flutter version info
-  github      Manage GitHub integration
-  help        Help about any command
-  keystore    Manage signing keystores
-  logout      Log out from Flotio
-  play        Manage Google Play credentials
-  project     Manage projects
-  update      Update flotio to the latest version
-  version     Print version information
-  whoami      Show the currently authenticated user
-
-Flags:
-      --config string   path to config file (default: $HOME/.flotio/config.yaml)
-  -h, --help            help for flotio
-      --host string     API host (default: api.flotio.ovh, accepts scheme://host e.g. http://localhost:8080)
-
-Use "flotio [command] --help" for more information about a command.`;
+function HelpCommands() {
+  return (
+    <div className="help-panel">
+      <div className="help-header">
+        <span className="help-title">Available Commands</span>
+      </div>
+      <div className="help-list">
+        {HELP_COMMANDS.map(({ command, description }) => (
+          <div className="help-row" key={command}>
+            <span className="help-prefix">  </span>
+            <span className="help-command-name">{command}</span>
+            <span className="help-command-description">{description}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function parseArgs(args: string[]) {
   const flags: Record<string, string> = {};
@@ -349,7 +355,7 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
     const args = parts.slice(1);
 
     if (command === "help") {
-      return HELP_TEXT;
+      return <HelpCommands />;
     }
 
     if (command === "date") {
@@ -368,7 +374,7 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
       const action = positional[0];
 
       if (!action || action === "help" || flags.help || flags.h) {
-        return HELP_TEXT;
+        return <HelpCommands />;
       }
 
       if (action === "version") {
@@ -984,6 +990,39 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
         .output {
           white-space: pre-wrap;
           color: #ce9178;
+        }
+        :global(.help-panel) {
+          margin: 4px 0 6px;
+          color: #d4d4d4;
+          white-space: normal;
+        }
+        :global(.help-header) {
+          margin-bottom: 4px;
+        }
+        :global(.help-title) {
+          color: #ce9178;
+        }
+        :global(.help-list) {
+          display: grid;
+          gap: 0;
+        }
+        :global(.help-row) {
+          display: grid;
+          grid-template-columns: 2ch minmax(54ch, max-content) minmax(0, 1fr);
+          column-gap: 2ch;
+          align-items: baseline;
+          min-height: 21px;
+        }
+        :global(.help-command-name) {
+          color: #dcdcaa;
+          font-weight: 600;
+          overflow-wrap: anywhere;
+        }
+        :global(.help-command-description) {
+          color: #9cdcfe;
+        }
+        :global(.help-prefix) {
+          white-space: pre;
         }
         .inputLine {
           display: flex;

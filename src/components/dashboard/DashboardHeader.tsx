@@ -7,6 +7,7 @@ import AddIcon from "@mui/icons-material/Add";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SearchIcon from "@mui/icons-material/Search";
 import { useRouter } from "next/navigation";
+import BoutonCLI from "../common/BoutonCLI";
 
 const DashboardHeader: React.FC = () => {
   const theme = useTheme();
@@ -25,6 +26,7 @@ const DashboardHeader: React.FC = () => {
         >
           <SearchIcon sx={{ color: theme.palette.text.secondary }} />
         </Button>
+        <BoutonCLI />
         <Button
           color="inherit"
           sx={{ minWidth: 40, p: 1, borderRadius: 1 }}

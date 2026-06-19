@@ -19,6 +19,7 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import { useApi } from "@/hooks/useApi";
+import BoutonCLI from "@/components/common/BoutonCLI";
 
 interface BuildDetailsHeaderProps {
   buildId: string;
@@ -178,7 +179,8 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
               }}
             />
           </Box>
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} alignItems="center">
+            <BoutonCLI />
             {repoUrl && (
               <Button
                 variant="outlined"

@@ -11,6 +11,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import Link from "next/link";
 import { useTheme } from "@mui/material/styles";
 import { usePathname, useRouter } from "next/navigation";
 import GridViewIcon from "@mui/icons-material/GridView";
@@ -231,20 +232,22 @@ function SideMenu() {
         <List>
           {menuItems.map((item) => {
             const isActive = isActiveLink(item.href);
+            const isSelected = isActive;
             return (
               <Box key={item.label}>
                 <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 1.5 }}>
                   <Button
+                    component={Link}
                     href={item.href}
                     startIcon={item.icon}
                     fullWidth
                     sx={{
                       justifyContent: 'flex-start',
-                      color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
-                      background: isActive ? theme.palette.action.selected : 'transparent',
+                      color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
+                      background: isSelected ? theme.palette.action.selected : 'transparent',
                       borderRadius: 1.5,
                       textTransform: 'none',
-                      fontWeight: isActive ? 600 : 500,
+                      fontWeight: isSelected ? 600 : 500,
                       px: 2,
                       py: 1.2,
                       '&:hover': {

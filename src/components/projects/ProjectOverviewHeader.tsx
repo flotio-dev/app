@@ -18,6 +18,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import PublishIcon from "@mui/icons-material/Publish";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import BoutonCLI from "../common/BoutonCLI";
 
 
 import TextField from "@mui/material/TextField";
@@ -101,7 +102,7 @@ const ProjectsHeader: React.FC = () => {
 				</Typography>
 			</Box>
 			<Box display="flex" alignItems="center" gap={1.5}>
-
+				<BoutonCLI />
 				<Button
 					color="inherit"
 					sx={{ minWidth: 40, p: 1, borderRadius: 1 }}

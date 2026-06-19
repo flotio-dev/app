@@ -10,6 +10,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import Typography from "@mui/material/Typography";
 import SideMenu from "@/components/common/SideMenu";
 import StartBuildModal from "@/components/builds/StartBuildModal";
+import BoutonCLI from "@/components/common/BoutonCLI";
 
 interface BuildHeaderProps {
   projectId?: string;
@@ -75,20 +76,23 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
               Builds
             </Link>
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            size="medium"
-            startIcon={<PlayArrowIcon />}
-            onClick={handleStartBuild}
-            sx={{
-              textTransform: "uppercase",
-              fontWeight: 600,
-              letterSpacing: "0.5px",
-            }}
-          >
-            Start build
-          </Button>
+          <div className="flex items-center gap-3">
+            <BoutonCLI />
+            <Button
+              variant="contained"
+              color="primary"
+              size="medium"
+              startIcon={<PlayArrowIcon />}
+              onClick={handleStartBuild}
+              sx={{
+                textTransform: "uppercase",
+                fontWeight: 600,
+                letterSpacing: "0.5px",
+              }}
+            >
+              Start build
+            </Button>
+          </div>
         </header>
         <div style={{ flex: 1, padding: 24 }}>{children}</div>
       </main>

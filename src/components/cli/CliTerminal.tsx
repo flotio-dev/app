@@ -6,68 +6,149 @@ import { useAuth } from '@/auth/AuthContext';
 import { useCliModal } from '@/context/CliModalContext';
 import { useRouter } from 'next/navigation';
 
-const HELP_COMMANDS = [
-  { command: "build start <project-id> [--platform android] [--mode release] [--branch main]", description: "Start a build" },
-  { command: "build list <project-id>", description: "List project builds" },
-  { command: "build show <build-id>", description: "Show build details" },
-  { command: "build logs <build-id>", description: "Show build logs" },
-  { command: "completion <bash|zsh|fish|powershell>", description: "Generate shell autocompletion" },
-  { command: "config get <key>", description: "Read a config value" },
-  { command: "config set <key> <value>", description: "Update a config value" },
-  { command: "config list", description: "List config values" },
-  { command: "configure [--host <url>]", description: "Configure Flotio CLI defaults" },
-  { command: 'create project "<name>" [--repo <git-url>]', description: "Create a project" },
-  { command: "select project <name-or-id>", description: "Select a project" },
-  { command: "env list <project-id>", description: "List environment variables and files" },
-  { command: "env create <key> <value> [--type env|file] [--path <path>]", description: "Create an environment value" },
-  { command: "env update <id> <value> [--type env|file] [--path <path>]", description: "Update an environment value" },
-  { command: "env delete <id>", description: "Delete an environment value" },
-  { command: "flutter", description: "Show Flutter version info" },
-  { command: "github status", description: "Show GitHub integration status" },
-  { command: "github connect", description: "Connect GitHub integration" },
-  { command: "github disconnect", description: "Disconnect GitHub integration" },
-  { command: "github repos", description: "List GitHub repositories" },
-  { command: "help [command]", description: "Show command help" },
-  { command: "keystore list", description: "List signing keystores" },
-  { command: 'keystore create "<name>" --file <keystore.jks> --alias <alias>', description: "Create a signing keystore" },
-  { command: "keystore delete <keystore-id>", description: "Delete a signing keystore" },
-  { command: "keystore attach <project-id> <keystore-id>", description: "Attach a keystore to a project" },
-  { command: "keystore detach <project-id>", description: "Detach the project keystore" },
-  { command: "logout", description: "Log out from Flotio" },
-  { command: "play list", description: "List Google Play credentials" },
-  { command: 'play create "<name>" --file <service-account.json>', description: "Create Google Play credentials" },
-  { command: "play delete <credential-id>", description: "Delete Google Play credentials" },
-  { command: "play attach <project-id> <credential-id>", description: "Attach Play credentials to a project" },
-  { command: "play detach <project-id>", description: "Detach Play credentials from a project" },
-  { command: "project list", description: "List projects" },
-  { command: "project show <project-id>", description: "Show project details" },
-  { command: 'project create "<name>" [--repo <git-url>]', description: "Create a project" },
-  { command: "project delete <project-id>", description: "Delete a project" },
-  { command: "project config <project-id>", description: "Show project configuration" },
-  { command: "project config set <project-id> <key> <value>", description: "Update project configuration" },
-  { command: "update", description: "Update flotio to the latest version" },
-  { command: "version", description: "Print version information" },
-  { command: "whoami", description: "Show the current authenticated user" },
+interface HelpCommand {
+  command: string;
+  description: string;
+  arguments?: { name: string; description: string; required: boolean }[];
+  options?: { name: string; description: string; defaultValue?: string }[];
+}
+
+const HELP_COMMANDS: HelpCommand[] = [
+  {
+    command: "flotio create project",
+    description: "Create a new project",
+    arguments: [
+      { name: "name", description: "The name of the project", required: true }
+    ],
+    options: [
+      { name: "--repo", description: "Git repository URL", defaultValue: "" }
+    ]
+  },
+  {
+    command: "flotio select project",
+    description: "Select a project context",
+    arguments: [
+      { name: "name-or-id", description: "Project Name or Project ID", required: true }
+    ]
+  },
+  {
+    command: "flotio quit",
+    description: "Unselect the current active project"
+  },
+  {
+    command: "flotio project list",
+    description: "List all projects and their status"
+  },
+  {
+    command: "flotio env list",
+    description: "List environment variables for a project",
+    arguments: [
+      { name: "project-id", description: "Target Project ID (defaults to active project)", required: false }
+    ],
+    options: [
+      { name: "--project", description: "Alternative to specify project ID" }
+    ]
+  },
+  {
+    command: "flotio build start",
+    description: "Start a project build",
+    arguments: [
+      { name: "project-id", description: "Target Project ID (defaults to active project)", required: false }
+    ],
+    options: [
+      { name: "--platform", description: "Target platform (e.g., android)", defaultValue: "android" },
+      { name: "--mode", description: "Build mode (release, debug, profile)", defaultValue: "release" },
+      { name: "--branch", description: "Git branch or ref", defaultValue: "main" }
+    ]
+  },
+  {
+    command: "flotio whoami",
+    description: "Show current authenticated user"
+  },
+  {
+    command: "flotio logout",
+    description: "Log out from the Flotio CLI"
+  },
+  {
+    command: "flotio version",
+    description: "Print version information"
+  },
+  {
+    command: "help",
+    description: "Show command help"
+  },
+  {
+    command: "date",
+    description: "Show current date and time"
+  }
 ];
 
 function HelpCommands() {
   return (
-    <div className="help-panel">
-      <div className="help-header">
-        <span className="help-title">Available Commands</span>
-      </div>
-      <div className="help-list">
-        {HELP_COMMANDS.map(({ command, description }) => (
-          <div className="help-row" key={command}>
-            <span className="help-prefix">  </span>
-            <span className="help-command-name">{command}</span>
-            <span className="help-command-description">{description}</span>
+    <div className="help-container">
+      <style jsx>{`
+        .help-container {
+          margin: 10px 0;
+          font-family: inherit;
+          color: #d4d4d4;
+          line-height: 1.6;
+        }
+        .help-header {
+          color: #569cd6;
+          font-weight: bold;
+          font-size: 14px;
+          margin-bottom: 12px;
+          border-bottom: 1px dashed #3e3e3e;
+          padding-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+        .command-block {
+          margin-bottom: 16px;
+          padding-left: 8px;
+          border-left: 2px solid #3e3e3e;
+        }
+        .command-block:hover {
+          border-left-color: #569cd6;
+        }
+        .command-header {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 12px;
+          margin-bottom: 4px;
+        }
+        .command-syntax {
+          color: #4ade80;
+          font-weight: 600;
+          font-size: 13px;
+        }
+        .command-desc {
+          color: #9cdcfe;
+          font-size: 13px;
+        }
+      `}</style>
+      <div className="help-header">Flotio CLI - Available Commands</div>
+      {HELP_COMMANDS.map((cmd) => (
+        <div className="command-block" key={cmd.command}>
+          <div className="command-header">
+            <span className="command-syntax">
+              {cmd.command}
+              {cmd.arguments && cmd.arguments.map(arg => (
+                <span key={arg.name}> {arg.required ? `<${arg.name}>` : `[<${arg.name}>]`}</span>
+              ))}
+              {cmd.options && cmd.options.map(opt => (
+                <span key={opt.name}> [{opt.name}{opt.defaultValue !== undefined ? `=${opt.defaultValue}` : ""}]</span>
+              ))}
+            </span>
+            <span className="command-desc">— {cmd.description}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
+
 
 function parseArgs(args: string[]) {
   const flags: Record<string, string> = {};
@@ -514,6 +595,18 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
           }
         }
         return `Error: Unknown select action "${subAction || ""}". Try "flotio select project <name-or-id>"`;
+      }
+
+      if (action === "quit") {
+        if (!user) {
+          return "Error: Not authenticated.";
+        }
+        if (!contextProjectId) {
+          return "No project is currently selected.";
+        }
+        setProjectId(null);
+        router.push("/dashboard");
+        return "✓ Unselected current project context.";
       }
 
       if (action === "project") {

@@ -1,23 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useApi } from '@/hooks/useApi';
-import { useBuildRefresh } from '@/context/BuildRefreshContext';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Box,
-  Typography,
-  TextField,
-  ToggleButtonGroup,
-  ToggleButton,
-  Stack,
-  Alert,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useApi } from "@/hooks/useApi";
+import { useBuildRefresh } from "@/context/BuildRefreshContext";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { FiPlay, FiGitBranch, FiSmartphone, FiCpu } from "react-icons/fi";
 
 interface StartBuildModalProps {
   open: boolean;
@@ -26,7 +15,7 @@ interface StartBuildModalProps {
   onStartBuild: (config: BuildConfig) => void;
 }
 
-interface BuildConfig {
+export interface BuildConfig {
   environment: string;
   baseDirectory: string;
   platform: string;
@@ -39,340 +28,172 @@ const StartBuildModal: React.FC<StartBuildModalProps> = ({
   onClose,
   onStartBuild,
 }) => {
-  const theme = useTheme();
-  const { request } = useApi();
+  const { client } = useApi();
   const { triggerRefresh } = useBuildRefresh();
+
   const [environment, setEnvironment] = useState("RELEASE");
-  const [baseDirectory, setBaseDirectory] = useState("/");
   const [flutterChannel, setFlutterChannel] = useState("STABLE");
   const [buildTarget, setBuildTarget] = useState("APK");
   const [gitRef, setGitRef] = useState("main");
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleStartBuild = async () => {
     if (!projectId) return;
     setError(null);
+    setIsLoading(true);
 
     try {
       const payload = {
         build_mode: environment.toLowerCase(),
         build_target: buildTarget.toLowerCase(),
         platform: "android",
-        git_branch: gitRef.toLowerCase(),
+        git_branch: gitRef.trim().toLowerCase(),
         flutter_channel: flutterChannel.toLowerCase(),
       };
 
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await client.builds.start(Number(projectId), payload);
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Build request failed:", res.status, errorText);
-        let errorMessage = errorText;
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.message) errorMessage = errorJson.message;
-          else if (errorJson.error) errorMessage = errorJson.error;
-        } catch {
-          // Response body is not JSON, use raw text
-        }
-        throw new Error(errorMessage || `Failed to start build (Status: ${res.status})`);
-      }
-
-      // Trigger immediate refresh of build list
+      // Trigger immediate refresh
       triggerRefresh(projectId);
 
       onStartBuild({
         environment,
-        baseDirectory,
+        baseDirectory: "/",
         platform: buildTarget,
         gitRef,
       });
       onClose();
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred";
       console.error("Error starting build:", err);
-      setError(err.message || "An unexpected error occurred");
+      setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Dialog
-      open={open}
+    <Modal
+      isOpen={open}
       onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 1.5,
-          backgroundColor: theme.palette.background.paper,
-          backgroundImage: "none",
-        },
-      }}
+      title="Start New Pipeline Build"
+      description="Configure target build options, git branch, and Flutter runtime parameters."
+      maxWidth="md"
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            isLoading={isLoading}
+            leftIcon={<FiPlay className="h-3.5 w-3.5" />}
+            onClick={handleStartBuild}
+          >
+            Trigger Build
+          </Button>
+        </>
+      }
     >
-      <DialogTitle
-        sx={{
-          fontSize: "1.25rem",
-          fontWeight: 600,
-          paddingBottom: 2,
-        }}
-      >
-        Start build
-      </DialogTitle>
+      <div className="space-y-4">
+        {error && (
+          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-xs text-rose-300">
+            {error}
+          </div>
+        )}
 
-      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}>
-        {error && <Alert severity="error">{error}</Alert>}
-        {/* Environment Selection */}
-        <Box>
-          <Typography
-            variant="subtitle2"
-            sx={{
-              fontWeight: 600,
-              marginBottom: 1,
-              color: theme.palette.text.primary,
-              fontSize: "0.875rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              opacity: 0.8,
-            }}
-          >
-            Environment
-          </Typography>
-          <ToggleButtonGroup
-            value={environment}
-            exclusive
-            onChange={(e, newEnvironment) => {
-              if (newEnvironment !== null) {
-                setEnvironment(newEnvironment);
-              }
-            }}
-            fullWidth
-            size="small"
-            sx={{
-              gap: 1,
-              "& .MuiToggleButton-root": {
-                textTransform: "uppercase",
-                fontWeight: 600,
-                fontSize: "0.75rem",
-                padding: "10px 12px",
-                border: `1px solid ${theme.palette.divider}`,
-                color: theme.palette.text.secondary,
-                transition: "all 0.2s ease",
-                borderRadius: 1,
-                "&.Mui-selected": {
-                  backgroundColor: theme.palette.primary.main,
-                  color: "#fff",
-                  border: `1px solid ${theme.palette.primary.main}`,
-                  "&:hover": {
-                    backgroundColor: theme.palette.primary.dark,
-                    borderColor: theme.palette.primary.dark,
-                  },
-                },
-                "&:hover": {
-                  backgroundColor: theme.palette.action.hover,
-                  borderColor: theme.palette.primary.light,
-                },
-              },
-            }}
-          >
-            <ToggleButton value="RELEASE">Release</ToggleButton>
-            <ToggleButton value="DEBUG">Debug</ToggleButton>
-            <ToggleButton value="PROFILE">Profile</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+        {/* Git Branch / Ref */}
+        <Input
+          label="Git Branch or Tag Ref"
+          value={gitRef}
+          onChange={(e) => setGitRef(e.target.value)}
+          leftElement={<FiGitBranch className="h-3.5 w-3.5" />}
+          placeholder="main"
+          className="bg-zinc-900 border-zinc-800"
+          helperText="The branch, tag, or commit hash to check out and build."
+        />
 
-        {/* Build Configuration */}
-        <Box>
-          <Typography
-            variant="subtitle2"
-            sx={{
-              fontWeight: 600,
-              marginBottom: 1,
-              color: theme.palette.text.primary,
-              fontSize: "0.875rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              opacity: 0.8,
-            }}
-          >
-            Build configuration
-          </Typography>
-
-          <Stack spacing={1.5}>
-            {/* Flutter Channel */}
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.75,
-                  fontWeight: 500,
-                }}
+        {/* Build Mode Selector */}
+        <div>
+          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            Build Mode
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: "RELEASE", label: "Release", desc: "Optimized production binary" },
+              { key: "PROFILE", label: "Profile", desc: "Performance profiling" },
+              { key: "DEBUG", label: "Debug", desc: "Quick test build with symbols" },
+            ].map((mode) => (
+              <button
+                key={mode.key}
+                type="button"
+                onClick={() => setEnvironment(mode.key)}
+                className={`p-3 rounded-lg border text-left transition-colors cursor-pointer ${
+                  environment === mode.key
+                    ? "border-cyan-500/80 bg-cyan-950/20 text-cyan-200"
+                    : "border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700"
+                }`}
               >
-                Flutter Channel
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                {["STABLE", "BETA", "DEV", "MASTER"].map((channel) => (
-                  <Button
-                    key={channel}
-                    variant={flutterChannel === channel ? "contained" : "outlined"}
-                    size="small"
-                    onClick={() => setFlutterChannel(channel)}
-                    sx={{
-                      textTransform: "uppercase",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      flex: 1,
-                      transition: "all 0.2s ease",
-                      borderRadius: 1,
-                      borderWidth: "1px",
-                      ...(flutterChannel === channel
-                        ? {
-                          backgroundColor: theme.palette.primary.main,
-                          borderColor: theme.palette.primary.main,
-                        }
-                        : {
-                          borderColor: theme.palette.divider,
-                          color: theme.palette.text.secondary,
-                          "&:hover": {
-                            borderColor: theme.palette.primary.main,
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }),
-                    }}
-                  >
-                    {channel}
-                  </Button>
-                ))}
-              </Box>
-            </Box>
+                <div className="text-xs font-semibold text-zinc-100">{mode.label}</div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">{mode.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* Build Target */}
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.75,
-                  fontWeight: 500,
-                }}
+        {/* Build Target Selector */}
+        <div>
+          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            Target Package Format
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: "APK", label: "Android APK", desc: "Direct device installation file" },
+              { key: "AAB", label: "Android App Bundle", desc: "Google Play Store publishing format" },
+            ].map((target) => (
+              <button
+                key={target.key}
+                type="button"
+                onClick={() => setBuildTarget(target.key)}
+                className={`p-3 rounded-lg border text-left transition-colors cursor-pointer ${
+                  buildTarget === target.key
+                    ? "border-cyan-500/80 bg-cyan-950/20 text-cyan-200"
+                    : "border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700"
+                }`}
               >
-                Build Target
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                {["APK", "AAB"].map((target) => (
-                  <Button
-                    key={target}
-                    variant={buildTarget === target ? "contained" : "outlined"}
-                    size="small"
-                    onClick={() => setBuildTarget(target)}
-                    sx={{
-                      textTransform: "uppercase",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      flex: 1,
-                      transition: "all 0.2s ease",
-                      borderRadius: 1,
-                      borderWidth: "1px",
-                      ...(buildTarget === target
-                        ? {
-                          backgroundColor: theme.palette.primary.main,
-                          borderColor: theme.palette.primary.main,
-                        }
-                        : {
-                          borderColor: theme.palette.divider,
-                          color: theme.palette.text.secondary,
-                          "&:hover": {
-                            borderColor: theme.palette.primary.main,
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }),
-                    }}
-                  >
-                    {target}
-                  </Button>
-                ))}
-              </Box>
-            </Box>
+                <div className="text-xs font-semibold text-zinc-100">{target.label}</div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">{target.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* Git Reference */}
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.5,
-                  fontWeight: 500,
-                }}
+        {/* Flutter Channel */}
+        <div>
+          <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+            Flutter Channel
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {["STABLE", "BETA", "DEV"].map((channel) => (
+              <button
+                key={channel}
+                type="button"
+                onClick={() => setFlutterChannel(channel)}
+                className={`py-2 px-3 rounded-lg border text-center text-xs font-medium transition-colors cursor-pointer ${
+                  flutterChannel === channel
+                    ? "border-cyan-500/80 bg-cyan-950/20 text-cyan-200"
+                    : "border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700"
+                }`}
               >
-                Git ref
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontSize: "0.7rem",
-                  color: theme.palette.text.secondary,
-                  marginBottom: 0.75,
-                }}
-              >
-                Commit hash, branch, or tag
-              </Typography>
-              <TextField
-                value={gitRef}
-                onChange={(e) => setGitRef(e.target.value)}
-                fullWidth
-                size="small"
-                placeholder="main"
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 1,
-                  },
-                }}
-              />
-            </Box>
-          </Stack>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ padding: 2, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          variant="outlined"
-          sx={{
-            textTransform: "uppercase",
-            fontWeight: 600,
-            fontSize: "0.875rem",
-            borderRadius: 1,
-            transition: "all 0.2s ease",
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleStartBuild}
-          variant="contained"
-          color="primary"
-          sx={{
-            textTransform: "uppercase",
-            fontWeight: 600,
-            fontSize: "0.875rem",
-            borderRadius: 1,
-            transition: "all 0.2s ease",
-          }}
-        >
-          Start Build
-        </Button>
-      </DialogActions>
-    </Dialog>
+                {channel}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 };
 

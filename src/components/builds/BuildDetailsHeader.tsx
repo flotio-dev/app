@@ -2,24 +2,22 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogActions from "@mui/material/DialogActions";
-import { useTheme } from "@mui/material/styles";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import CancelIcon from "@mui/icons-material/Cancel";
-import GitHubIcon from "@mui/icons-material/GitHub";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
-import BoutonCLI from "@/components/common/BoutonCLI";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import {
+  FiPlay,
+  FiDownload,
+  FiXCircle,
+  FiTrash2,
+  FiGitBranch,
+  FiGitCommit,
+  FiClock,
+  FiArrowLeft,
+  FiExternalLink,
+} from "react-icons/fi";
 
 interface BuildDetailsHeaderProps {
   buildId: string;
@@ -40,13 +38,12 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
   message,
   startTime,
   repoUrl,
-  apkUrl
+  apkUrl,
 }) => {
-  const theme = useTheme();
   const params = useParams();
-  const projectId = params.id as string;
   const router = useRouter();
-  const { request } = useApi();
+  const projectId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
+  const { client } = useApi();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -58,26 +55,13 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
 
   const handleDownload = async () => {
     if (!projectId || !buildId) return;
-
     try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/download`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.download_url) {
-          window.open(data.download_url, "_blank");
-        } else {
-          alert("Lien de téléchargement non trouvé.");
-        }
-      } else {
-        console.error("Failed to fetch download URL");
-        alert("Erreur lors de la récupération du lien de téléchargement.");
+      const data = await client.builds.download(Number(projectId), Number(buildId));
+      if (data.download_url) {
+        window.open(data.download_url, "_blank");
       }
     } catch (error) {
       console.error("Error downloading build:", error);
-      alert("Erreur lors de la demande de téléchargement.");
     }
   };
 
@@ -85,23 +69,10 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
     if (!projectId || !buildId) return;
     setIsDeleting(true);
     try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      if (response.ok) {
-        window.location.href = `/projects/${projectId}/builds`;
-      } else {
-        const errorText = await response.text();
-        alert(`Erreur lors de la suppression: ${errorText}`);
-      }
+      await client.builds.remove(Number(projectId), Number(buildId));
+      router.push(`/projects/${projectId}/builds`);
     } catch (error) {
       console.error("Error deleting build:", error);
-      alert("Erreur lors de la suppression du build");
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -112,16 +83,8 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
     if (!projectId || !buildId) return;
     setIsCanceling(true);
     try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${buildId}/cancel`,
-        { method: "PUT" }
-      );
-
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        alert("Erreur lors de l'annulation du build");
-      }
+      await client.builds.cancel(Number(projectId), Number(buildId));
+      window.location.reload();
     } catch (error) {
       console.error("Error canceling build:", error);
     } finally {
@@ -130,203 +93,157 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return { bg: "#d1fae5", text: "#047857", label: "Success" };
-      case "failed":
-        return { bg: "#fee2e2", text: "#dc2626", label: "Failed" };
-      case "building":
-      case "running":
-        return { bg: "#fef3c7", text: "#d97706", label: "Running" };
-      case "waiting":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
-      case "pending":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
-      case "cancelled":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Cancelled" };
-      default:
-        return { bg: "#f3f4f6", text: "#374151", label: "Unknown" };
-    }
+  const getStatusBadge = () => {
+    const s = status.toLowerCase();
+    if (s === "success") return <Badge variant="success" dot>Success</Badge>;
+    if (s === "failed") return <Badge variant="failed" dot>Failed</Badge>;
+    if (["building", "running", "pending"].includes(s))
+      return <Badge variant="running" dot>Building</Badge>;
+    if (["cancelled", "canceled"].includes(s))
+      return <Badge variant="neutral">Cancelled</Badge>;
+    return <Badge variant="neutral">{status}</Badge>;
   };
 
-  const statusColor = getStatusColor(status);
-
   return (
-    <>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          mb: 3,
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2,
-        }}
-      >
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-          <Box>
-            <Typography variant="h5" fontWeight={700} mb={1}>
-              {buildId}
-            </Typography>
-            <Chip
-              label={statusColor.label}
-              size="small"
-              sx={{
-                background: statusColor.bg,
-                color: statusColor.text,
-                fontWeight: 600,
-                fontSize: "0.75rem",
-              }}
-            />
-          </Box>
-          <Box display="flex" gap={1} alignItems="center">
-            <BoutonCLI />
-            {repoUrl && (
-              <Button
-                variant="outlined"
-                startIcon={<GitHubIcon />}
-                size="small"
-                sx={{ textTransform: "none" }}
-                onClick={() => window.open(repoUrl, "_blank")}
-              >
-                Visit Repository
-              </Button>
-            )}
+    <div className="space-y-4 mb-6">
+      {/* Back button & top status bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href={`/projects/${projectId}/builds`}
+            className="p-2 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 hover:border-zinc-700 transition-colors"
+          >
+            <FiArrowLeft className="h-4 w-4" />
+          </Link>
 
-            {/* Cancel Build - Orange if Running */}
-            {isRunning && (
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<CancelIcon />}
-                size="small"
-                sx={{ textTransform: "none" }}
-                onClick={() => setCancelDialogOpen(true)}
-              >
-                Cancel Build
-              </Button>
-            )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-lg font-bold text-zinc-100 font-mono tracking-tight">
+                Build #{buildId}
+              </h2>
+              {getStatusBadge()}
+            </div>
 
-            {/* Download APK - Green if Success */}
-            {isSuccess && (
-              <Button
-                variant="outlined"
-                color="success"
-                startIcon={<DownloadIcon />}
-                size="small"
-                sx={{ textTransform: "none" }}
-                onClick={handleDownload}
-              >
-                Download APK
-              </Button>
-            )}
+            <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 flex-wrap font-mono">
+              <span className="flex items-center gap-1 text-zinc-300">
+                <FiGitBranch className="h-3 w-3 text-zinc-500" />
+                {branch || "main"}
+              </span>
+              {commit && (
+                <span className="flex items-center gap-1 text-zinc-500">
+                  <FiGitCommit className="h-3 w-3" />
+                  {commit.slice(0, 7)}
+                </span>
+              )}
+              {startTime && (
+                <span className="flex items-center gap-1 text-zinc-500">
+                  <FiClock className="h-3 w-3" />
+                  {startTime}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
-            {/* Delete Build - Red (Permanently Visible) */}
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          {isRunning && (
             <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              size="small"
-              sx={{ textTransform: "none" }}
-              onClick={() => setDeleteDialogOpen(true)}
+              variant="danger"
+              size="sm"
+              leftIcon={<FiXCircle className="h-3.5 w-3.5" />}
+              onClick={() => setCancelDialogOpen(true)}
             >
-              Delete Build
+              Cancel Build
             </Button>
-          </Box>
-        </Box>
-
-        <Box display="flex" gap={4} mt={3}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              COMMIT
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {commit}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              BRANCHE
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {branch}
-            </Typography>
-          </Box>
-          <Box flex={1}>
-            <Typography variant="caption" color="text.secondary">
-              MESSAGE
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {message}
-            </Typography>
-          </Box>
-          {startTime && (
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                DÉMARRÉ
-              </Typography>
-              <Typography variant="body2" fontWeight={600}>
-                {startTime}
-              </Typography>
-            </Box>
           )}
-        </Box>
-      </Paper>
 
-      {/* Delete Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
+          {isSuccess && (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<FiDownload className="h-3.5 w-3.5" />}
+              onClick={handleDownload}
+            >
+              Download APK
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-zinc-500 hover:text-rose-400"
+          >
+            <FiTrash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        title="Delete Build"
+        description="Are you sure you want to permanently delete this build and its log files?"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDeleting}
+              onClick={handleDeleteConfirm}
+            >
+              Delete
+            </Button>
+          </>
+        }
       >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to permanently delete Build #{buildId}? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            color="error"
-            variant="contained"
-            autoFocus
-            disabled={isDeleting}
-          >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <p className="text-xs text-zinc-400">
+          This operation will remove all build artifacts and logs.
+        </p>
+      </Modal>
 
-      {/* Cancel Dialog */}
-      <Dialog
-        open={cancelDialogOpen}
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        isOpen={cancelDialogOpen}
         onClose={() => setCancelDialogOpen(false)}
+        title="Cancel In-Flight Build"
+        description="Are you sure you want to cancel the currently executing pipeline build?"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={isCanceling}
+            >
+              Back
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isCanceling}
+              onClick={handleCancelConfirm}
+            >
+              Stop Build
+            </Button>
+          </>
+        }
       >
-        <DialogTitle>Confirm Cancellation</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to cancel this build?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCancelDialogOpen(false)} color="primary">
-            Back
-          </Button>
-          <Button
-            onClick={handleCancelConfirm}
-            color="warning"
-            variant="contained"
-            autoFocus
-            disabled={isCanceling}
-          >
-            {isCanceling ? "Canceling..." : "Cancel Build"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        <p className="text-xs text-zinc-400">
+          The runner will abort immediately and mark the build as cancelled.
+        </p>
+      </Modal>
+    </div>
   );
 };
 

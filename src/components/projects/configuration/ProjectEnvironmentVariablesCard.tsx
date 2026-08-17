@@ -1,377 +1,365 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Stack from "@mui/material/Stack";
-import Divider from "@mui/material/Divider";
-import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogActions from "@mui/material/DialogActions";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import AddIcon from "@mui/icons-material/Add";
-import TuneIcon from "@mui/icons-material/Tune";
-import { useTheme } from "@mui/material/styles";
 import { useApi } from "@/hooks/useApi";
-import EnvironmentVariableRow from "./EnvironmentVariableRow";
-import { EnvironmentVariable } from "./projectConfiguration.types";
+import { AccordionSection } from "@/components/ui/Accordion";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import type { EnvCreateRequest, EnvDTO } from "@/lib/api/types";
+import {
+  FiSliders,
+  FiPlus,
+  FiTrash2,
+  FiEye,
+  FiEyeOff,
+  FiCopy,
+  FiCheck,
+  FiFileText,
+  FiLock,
+} from "react-icons/fi";
 
-const createVariable = (): EnvironmentVariable => ({
-  id: crypto.randomUUID(),
-  key: "",
-  value: "",
-});
+export interface EnvVariableState {
+  id: string;
+  apiId?: number;
+  key: string;
+  value: string;
+  type?: "env" | "file";
+  path?: string;
+  isBase64?: boolean;
+}
 
 interface ProjectEnvironmentVariablesCardProps {
   projectId?: string;
-  variables: EnvironmentVariable[];
-  onAdd: () => void;
-  onChange: (next: EnvironmentVariable[]) => void;
-  onSave: () => void;
-  canSave: boolean;
 }
 
-const ProjectEnvironmentVariablesCard: React.FC<ProjectEnvironmentVariablesCardProps> = ({
+export default function ProjectEnvironmentVariablesCard({
   projectId,
-  variables,
-  onAdd,
-  onChange,
-  onSave,
-  canSave,
-}) => {
-  const theme = useTheme();
-  const { request } = useApi();
-  const loadedEnvIdsRef = useRef<number[]>([]);
-  const editedKeyIdsRef = useRef<Set<string>>(new Set());
+}: ProjectEnvironmentVariablesCardProps) {
+  const { client } = useApi();
+  const [variables, setVariables] = useState<EnvVariableState[]>([]);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [variableToDelete, setVariableToDelete] = useState<string | null>(null);
-  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const [openModal, setOpenModal] = useState(false);
+  const [editingVar, setEditingVar] = useState<EnvVariableState | null>(null);
+  const [modalKey, setModalKey] = useState("");
+  const [modalValue, setModalValue] = useState("");
+  const [modalType, setModalType] = useState<"env" | "file">("env");
+  const [modalPath, setModalPath] = useState("");
+  const [modalBase64, setModalBase64] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const normalizeEnv = (item: any): EnvironmentVariable => {
-    const itemId = item?.id ?? item?.ID;
-    return {
-      id: String(itemId ?? crypto.randomUUID()),
-      apiId:
-        typeof itemId === "number"
-          ? itemId
-          : typeof itemId === "string" && !Number.isNaN(Number(itemId))
-            ? Number(itemId)
-            : undefined,
-      key: item?.key ?? "",
-      value: item?.value ?? "",
-      type: item?.type,
-      path: item?.path,
-      isBase64: item?.is_base64 ?? item?.isBase64 ?? false,
-      projectId: item?.project_id ?? item?.project?.id ?? item?.project?.ID,
-    };
-  };
-
-  const extractEnvs = (data: any): any[] => {
-    if (Array.isArray(data?.envs)) return data.envs;
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === "object") {
-      return Object.values(data).flatMap((value) =>
-        Array.isArray(value) ? value : value ? [value] : []
+  const fetchEnvVariables = async () => {
+    if (!projectId) return;
+    try {
+      const data = await client.envs.list(Number(projectId));
+      const list = data.envs ?? [];
+      setVariables(
+        list.map((item) => ({
+          id: String(item.id ?? crypto.randomUUID()),
+          apiId: item.id,
+          key: item.key ?? "",
+          value: item.value ?? "",
+          type: item.type === "file" ? "file" : "env",
+          path: item.path ?? "",
+          isBase64: Boolean(item.is_base64),
+        }))
       );
+    } catch (err) {
+      console.error("Failed to load env variables", err);
     }
-    return [];
   };
 
   useEffect(() => {
-    let cancelled = false;
+    fetchEnvVariables();
+  }, [projectId]);
 
-    const fetchEnv = async () => {
-      if (!projectId) return;
+  const toggleReveal = (id: string) => {
+    setRevealedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-      try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/env?project_id=${projectId}`);
-        if (!res.ok) return;
+  const copyToClipboard = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
-        const data = await res.json();
-        const envs = extractEnvs(data);
+  const handleOpenAddModal = () => {
+    setEditingVar(null);
+    setModalKey("");
+    setModalValue("");
+    setModalType("env");
+    setModalPath("");
+    setModalBase64(false);
+    setError(null);
+    setOpenModal(true);
+  };
 
-        if (!cancelled) {
-          const normalized = envs.map(normalizeEnv);
+  const handleOpenEditModal = (v: EnvVariableState) => {
+    setEditingVar(v);
+    setModalKey(v.key);
+    setModalValue(v.value);
+    setModalType(v.type || "env");
+    setModalPath(v.path || "");
+    setModalBase64(Boolean(v.isBase64));
+    setError(null);
+    setOpenModal(true);
+  };
 
-          loadedEnvIdsRef.current = normalized
-            .map((item: EnvironmentVariable) => item.apiId)
-            .filter((id: number | undefined): id is number => typeof id === "number");
-
-          editedKeyIdsRef.current.clear();
-          onChange(normalized);
-        }
-      } catch (error) {
-        console.error("Failed to fetch env variables", error);
-      }
-    };
-
-    fetchEnv();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, request]);
-
-  const updateVariable = (updated: EnvironmentVariable) => {
-    const previous = variables.find((variable) => variable.id === updated.id);
-
-    if (previous && previous.key !== updated.key) {
-      editedKeyIdsRef.current.add(updated.id);
+  const handleSaveModal = async () => {
+    if (!modalKey.trim()) {
+      setError("Variable key cannot be empty.");
+      return;
     }
-
-    onChange(variables.map((variable) => (variable.id === updated.id ? updated : variable)));
-  };
-
-  const deleteVariable = (id: string) => {
-    setVariableToDelete(id);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!variableToDelete) return;
-
-    const variable = variables.find((v) => v.id === variableToDelete);
-    if (variable && variable.apiId) {
-      try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/env/${variable.apiId}`, {
-          method: "DELETE",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to delete env ${variable.key}`);
-        }
-        loadedEnvIdsRef.current = loadedEnvIdsRef.current.filter((id) => id !== variable.apiId);
-        setSnack({ open: true, message: "Variable deleted successfully", severity: "success" });
-      } catch (error) {
-        console.error("Failed to delete env variable", error);
-        setSnack({ open: true, message: "Failed to delete variable", severity: "error" });
-        setDeleteDialogOpen(false);
-        setVariableToDelete(null);
-        return;
-      }
-    }
-
-    editedKeyIdsRef.current.delete(variableToDelete);
-    onChange(variables.filter((v) => v.id !== variableToDelete));
-    setDeleteDialogOpen(false);
-    setVariableToDelete(null);
-  };
-
-  const buildPayload = (variable: EnvironmentVariable) => ({
-    key: variable.key,
-    value: variable.value,
-    type: variable.type ?? "env",
-    path: variable.path ?? "",
-    is_base64: variable.isBase64 ?? false,
-    project_id: projectId ? Number(projectId) : undefined,
-  });
-
-  const handleSave = async () => {
     if (!projectId) return;
 
+    setIsSaving(true);
+    setError(null);
+
     try {
-      const nextVariables = variables.filter((variable) => variable.key.trim());
-      const currentIds = new Set<number>(
-        nextVariables
-          .map((variable) => variable.apiId)
-          .filter((id): id is number => typeof id === "number")
-      );
-
-      for (const variable of nextVariables) {
-        const payload = buildPayload(variable);
-
-        if (variable.apiId) {
-          const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/env/${variable.apiId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (!res.ok) {
-            throw new Error(`Failed to update env ${variable.key}`);
-          }
-        } else {
-          const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/env`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (!res.ok) {
-            throw new Error(`Failed to create env ${variable.key}`);
-          }
-        }
+      if (editingVar?.apiId) {
+        // Update
+        await client.envs.update(editingVar.apiId, {
+          key: modalKey.trim(),
+          value: modalValue,
+          type: modalType,
+          path: modalType === "file" ? modalPath : undefined,
+          is_base64: modalBase64,
+          project_id: Number(projectId),
+        });
+      } else {
+        // Create
+        await client.envs.create({
+          key: modalKey.trim(),
+          value: modalValue,
+          type: modalType,
+          path: modalType === "file" ? modalPath : undefined,
+          is_base64: modalBase64,
+          project_id: Number(projectId),
+        });
       }
-
-      for (const id of loadedEnvIdsRef.current) {
-        if (!currentIds.has(id)) {
-          const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/env/${id}`, {
-            method: "DELETE",
-          });
-
-          if (!res.ok) {
-            throw new Error(`Failed to delete env ${id}`);
-          }
-        }
-      }
-
-      const refreshed = await request(`${process.env.NEXT_PUBLIC_API_URL}/env?project_id=${projectId}`);
-      if (refreshed.ok) {
-        const data = await refreshed.json();
-        const envs = extractEnvs(data);
-        const normalized = envs.map((item: any) => normalizeEnv(item));
-
-        loadedEnvIdsRef.current = normalized
-          .map((item: EnvironmentVariable) => item.apiId)
-          .filter((id: number | undefined): id is number => typeof id === "number");
-
-        editedKeyIdsRef.current.clear();
-        onChange(normalized.length > 0 ? normalized : [createVariable()]);
-      }
-
-      onSave();
-      setSnack({ open: true, message: "Variables saved successfully", severity: "success" });
-    } catch (error) {
-      console.error("Failed to save env variables", error);
-      setSnack({ open: true, message: "Failed to save variables", severity: "error" });
+      await fetchEnvVariables();
+      setOpenModal(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save variable";
+      setError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const keyOwners = variables.reduce<Record<string, Set<string>>>((acc, variable) => {
-    const key = String(variable.key ?? "").trim();
-    if (!key) return acc;
-
-    if (!acc[key]) acc[key] = new Set<string>();
-    acc[key].add(String(variable.id));
-    return acc;
-  }, {});
+  const handleDelete = async (apiId?: number) => {
+    if (!apiId) return;
+    try {
+      await client.envs.remove(apiId);
+      setVariables((prev) => prev.filter((v) => v.apiId !== apiId));
+    } catch (err) {
+      console.error("Failed to delete variable", err);
+    }
+  };
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        borderRadius: 3,
-        background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.divider}`,
-        p: 3,
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2}>
-        <Box>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            color={theme.palette.text.primary}
-            display="flex"
-            alignItems="center"
-            gap={1}
-          >
-            <TuneIcon fontSize="small" />
-            Environment variables
-          </Typography>
-          <Typography variant="body2" color={theme.palette.text.secondary}>
-            Manage key / value pairs. Keys must be unique within the project.
-          </Typography>
-        </Box>
-
-        <Chip
-          label={`${variables.length} variable${variables.length > 1 ? "s" : ""}`}
-          variant="outlined"
-        />
-      </Box>
-
-      <Stack spacing={2} sx={{ flex: 1 }}>
-        {variables.length === 0 ? (
-          <Box
-            sx={{
-              border: `1px dashed ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 3,
-              textAlign: "center",
-              color: theme.palette.text.secondary,
-            }}
-          >
-            No variables yet.
-          </Box>
-        ) : (
-          variables.map((variable) => {
-            const trimmedKey = String(variable.key ?? "").trim();
-            const duplicateKey = trimmedKey ? (keyOwners[trimmedKey]?.size ?? 0) > 1 : false;
-            const keyWasEdited = editedKeyIdsRef.current.has(variable.id);
-
-            const keyError = !trimmedKey
-              ? "The key cannot be empty"
-              : duplicateKey && keyWasEdited
-                ? "The key must be unique"
-                : undefined;
-
-            return (
-              <Box key={variable.id}>
-                <EnvironmentVariableRow
-                  variable={variable}
-                  keyError={keyError}
-                  onChange={updateVariable}
-                  onDelete={deleteVariable}
-                />
-                <Divider sx={{ mt: 2 }} />
-              </Box>
-            );
-          })
-        )}
-
-        <Box display="flex" alignItems="center" gap={1} width="100%">
-          <Button variant="outlined" startIcon={<AddIcon />} onClick={onAdd}>
-            Add variable
-          </Button>
-          <Box flex={1} />
-          <Button variant="contained" onClick={handleSave} disabled={!canSave}>
-            Save changes
-          </Button>
-        </Box>
-      </Stack>
-
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Environment Variable</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this environment variable? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={4000}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+    <>
+      <AccordionSection
+        defaultOpen={true}
+        title="Environment Variables & Secret Groups"
+        description="Encrypted credentials, API keys, and file variables injected during build runtime."
+        icon={<FiLock className="h-4 w-4 text-cyan-400" />}
+        badge={
+          <Badge variant="neutral" size="sm">
+            {variables.length} configured
+          </Badge>
+        }
       >
-        <Alert severity={snack.severity} elevation={6} variant="filled" onClose={() => setSnack((s) => ({ ...s, open: false }))}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
-    </Paper>
-  );
-};
+        <div className="space-y-4 pt-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-zinc-400">
+              Values are masked by default. Secrets are safely encrypted at rest and in transit.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<FiPlus className="h-3.5 w-3.5" />}
+              onClick={handleOpenAddModal}
+            >
+              Add Variable
+            </Button>
+          </div>
 
-export default ProjectEnvironmentVariablesCard;
+          {variables.length === 0 ? (
+            <div className="p-8 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 text-center">
+              <p className="text-xs text-zinc-500">No environment variables configured yet.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-800/60 rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
+              {variables.map((item) => {
+                const isRevealed = revealedIds.has(item.id);
+                const isCopied = copiedId === item.id;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-900/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs font-mono font-bold text-zinc-100">
+                        {item.key}
+                      </span>
+                      <Badge variant="neutral" size="sm">
+                        {item.type || "env"}
+                      </Badge>
+                      {item.isBase64 && (
+                        <Badge variant="info" size="sm">
+                          Base64
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 font-mono text-xs text-zinc-400 min-w-0">
+                      <span className="truncate max-w-[220px] bg-zinc-900 px-2 py-1 rounded border border-zinc-850">
+                        {isRevealed ? item.value : "••••••••••••"}
+                      </span>
+
+                      <button
+                        type="button"
+                        title={isRevealed ? "Hide" : "Reveal"}
+                        onClick={() => toggleReveal(item.id)}
+                        className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                      >
+                        {isRevealed ? <FiEyeOff className="h-3.5 w-3.5" /> : <FiEye className="h-3.5 w-3.5" />}
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Copy Value"
+                        onClick={() => copyToClipboard(item.id, item.value)}
+                        className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                      >
+                        {isCopied ? (
+                          <FiCheck className="h-3.5 w-3.5 text-emerald-400" />
+                        ) : (
+                          <FiCopy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Edit"
+                        onClick={() => handleOpenEditModal(item)}
+                        className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Delete"
+                        onClick={() => handleDelete(item.apiId)}
+                        className="p-1 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer"
+                      >
+                        <FiTrash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </AccordionSection>
+
+      {/* Add / Edit Modal */}
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title={editingVar ? "Edit Environment Variable" : "Add Environment Variable"}
+        description="Set variable key, value, and destination properties."
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setOpenModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={isSaving}
+              onClick={handleSaveModal}
+            >
+              Save Variable
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && (
+            <div className="p-3 rounded bg-rose-950/40 border border-rose-500/30 text-xs text-rose-300">
+              {error}
+            </div>
+          )}
+
+          <Input
+            label="Variable Name / Key"
+            value={modalKey}
+            onChange={(e) => setModalKey(e.target.value)}
+            placeholder="e.g. API_SECRET_KEY"
+            className="bg-zinc-900 border-zinc-800 font-mono"
+            required
+          />
+
+          <Input
+            label="Variable Value"
+            type="password"
+            value={modalValue}
+            onChange={(e) => setModalValue(e.target.value)}
+            placeholder="Enter value"
+            className="bg-zinc-900 border-zinc-800 font-mono"
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Type
+              </label>
+              <select
+                value={modalType}
+                onChange={(e) => setModalType(e.target.value as "env" | "file")}
+                className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
+              >
+                <option value="env">Standard Env Variable</option>
+                <option value="file">File Path Variable</option>
+              </select>
+            </div>
+
+            {modalType === "file" && (
+              <Input
+                label="Target File Destination"
+                value={modalPath}
+                onChange={(e) => setModalPath(e.target.value)}
+                placeholder="android/key.properties"
+                className="bg-zinc-900 border-zinc-800 text-xs font-mono"
+              />
+            )}
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none pt-1">
+            <input
+              type="checkbox"
+              checked={modalBase64}
+              onChange={(e) => setModalBase64(e.target.checked)}
+              className="rounded border-zinc-700 bg-zinc-900 text-cyan-500"
+            />
+            <span>Base64 encoded binary value</span>
+          </label>
+        </div>
+      </Modal>
+    </>
+  );
+}

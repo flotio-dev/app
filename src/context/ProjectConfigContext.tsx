@@ -3,11 +3,10 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { useParams } from "next/navigation";
-
-type ProjectConfig = any;
+import type { Project, ProjectConfig } from "@/lib/api/types";
 
 type ProjectConfigContextValue = {
-  project: any | null;
+  project: Project | null;
   config: ProjectConfig | null;
   loading: boolean;
   error: Error | null;
@@ -18,9 +17,9 @@ const ProjectConfigContext = createContext<ProjectConfigContextValue | undefined
 
 export const ProjectConfigProvider: React.FC<{ projectId?: string; children: React.ReactNode }> = ({ projectId: projectIdProp, children }) => {
   const params = useParams();
-  const { request } = useApi();
+  const { client } = useApi();
   const projectId = projectIdProp || (params?.id as string | undefined);
-  const [project, setProject] = useState<any | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [config, setConfig] = useState<ProjectConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -31,34 +30,24 @@ export const ProjectConfigProvider: React.FC<{ projectId?: string; children: Rea
     setLoading(true);
     setError(null);
     try {
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`);
-      if (!res.ok) throw new Error(`Failed to fetch project config (${res.status})`);
-      const data = await res.json();
-      const cfg = data.config || null;
+      // ProjectConfigResponse = { config } — there is no `project` key on the
+      // wire shape (P-4); project metadata comes from a separate GET /project/{id}.
+      const data = await client.projects.getConfig(Number(projectId));
+      const cfg = data.config ?? null;
       setConfig(cfg);
 
-      let payloadProject = null as any;
-      if (data.project) {
-        payloadProject = data.project;
-      } else if (cfg) {
-        // try to fetch minimal project metadata (name, id) if API returns only config
-        try {
-          const metaRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}`);
-          if (metaRes.ok) {
-            const meta = await metaRes.json();
-            payloadProject = { ...(meta.project || {}), ...cfg, config: cfg, id: projectId };
-          } else {
-            payloadProject = { ...cfg, config: cfg, id: projectId };
-          }
-        } catch {
-          payloadProject = { ...cfg, config: cfg, id: projectId };
-        }
+      let payloadProject: Project | null = null;
+      try {
+        const meta = await client.projects.get(Number(projectId));
+        payloadProject = meta.project ?? null;
+      } catch {
+        payloadProject = null;
       }
 
       setProject(payloadProject);
       fetchedRef.current = true;
-    } catch (e: any) {
-      setError(e);
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setLoading(false);
     }

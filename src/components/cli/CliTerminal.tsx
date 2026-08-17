@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useApi } from '@/hooks/useApi';
+import { useApi, clearLocalSession } from '@/hooks/useApi';
 import { useAuth } from '@/auth/AuthContext';
 import { useCliModal } from '@/context/CliModalContext';
 import { useRouter } from 'next/navigation';
+import type { EnvDTO, Project, ProjectConfig } from '@/lib/api/types';
 
 interface HelpCommand {
   command: string;
@@ -183,7 +184,7 @@ function parseArgs(args: string[]) {
 }
 
 export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) {
-  const { request } = useApi();
+  const { client } = useApi();
   const { user, setUserAndToken, clearAuth } = useAuth();
   const { projectId: contextProjectId, setProjectId } = useCliModal();
   const router = useRouter();
@@ -194,29 +195,32 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
   };
   const [projectName, setProjectName] = useState<string>("");
 
+  /** First available Flutter version from the API (C-3: no hardcoded "3.19.0"). */
+  const firstFlutterVersion = async (): Promise<string> => {
+    try {
+      const data = await client.flutter.versions();
+      return data.versions?.[0]?.version ?? "";
+    } catch {
+      return "";
+    }
+  };
+
   useEffect(() => {
     if (!contextProjectId) {
       setProjectName("");
       return;
     }
     const fetchProjectName = async () => {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-      if (!apiBaseUrl) return;
       try {
-        const res = await request(`${apiBaseUrl}/project/${contextProjectId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const pName = data.name || data.project?.name || `Project ${contextProjectId}`;
-          setProjectName(pName);
-        } else {
-          setProjectName(`Project ${contextProjectId}`);
-        }
+        const data = await client.projects.get(Number(contextProjectId));
+        const pName = data.project?.name || `Project ${contextProjectId}`;
+        setProjectName(pName);
       } catch {
         setProjectName(`Project ${contextProjectId}`);
       }
     };
     fetchProjectName();
-  }, [contextProjectId, request]);
+  }, [contextProjectId, client]);
 
   const [height, setHeight] = useState(350);
   const isDragging = useRef(false);
@@ -313,43 +317,17 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
       currentLines.push(<div key={currentLines.length} className="output">\nCreating project...</div>);
       setLines([...currentLines]);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-      if (!apiBaseUrl) {
-        currentLines.push(<div key={currentLines.length + 1} className="output" style={{ color: '#f87171' }}>Error: NEXT_PUBLIC_API_URL is not configured.</div>);
-        setLines(currentLines);
-        setInteractiveSession(null);
-        return;
-      }
-
       try {
-        const res = await request(`${apiBaseUrl}/project`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: projectName,
-            build_folder: ".",
-            flutter_version: "3.19.0",
-            git_repo: gitRepo || "",
-            git_token: "",
-            git_username: "",
-            config: {
-              project_path: ".",
-              flutter_version: "3.19.0",
-              git_repo: gitRepo || "",
-              git_token: "",
-              git_username: "",
-            },
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to create project via API");
-        }
-
-        const newProj = await res.json();
-        const newId = newProj.id ?? newProj.project_id ?? "unknown";
+        const flutterVersion = await firstFlutterVersion();
+        const config: Partial<ProjectConfig> = {
+          project_path: ".",
+          git_repo: gitRepo || "",
+          git_token: "",
+          git_username: "",
+          ...(flutterVersion ? { flutter_version: flutterVersion } : {}),
+        };
+        const newProj = await client.projects.create({ name: projectName, config });
+        const newId = newProj.project?.id ?? "unknown";
 
         currentLines.push(
           <div key={currentLines.length + 2} className="output" style={{ color: '#4ade80' }}>
@@ -357,10 +335,11 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
           </div>
         );
         setLines(currentLines);
-      } catch (err: any) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error.";
         currentLines.push(
           <div key={currentLines.length + 2} className="output" style={{ color: '#f87171' }}>
-            Error creating project: {err.message || "Unknown error."}
+            Error creating project: {message}
           </div>
         );
         setLines(currentLines);
@@ -471,10 +450,7 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
 
 
       if (action === "logout") {
-        try {
-          await fetch("/api/auth/logout", { method: "POST" });
-        } catch {
-        }
+        await clearLocalSession();
         clearAuth();
         return "Success: Logged out.";
       }
@@ -491,49 +467,28 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
             return 'Error: Project name is required. Example: flotio create project "My App"';
           }
 
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!apiBaseUrl) return "Error: NEXT_PUBLIC_API_URL is not configured.";
-
           const gitRepo = flags.repo || flags.git_repo || "";
 
           try {
-            const res = await request(`${apiBaseUrl}/project`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                name: name,
-                build_folder: ".",
-                flutter_version: "3.19.0",
-                git_repo: gitRepo,
-                git_token: "",
-                git_username: "",
-                config: {
-                  project_path: ".",
-                  flutter_version: "3.19.0",
-                  git_repo: gitRepo,
-                  git_token: "",
-                  git_username: "",
-                },
-              }),
-            });
+            const flutterVersion = await firstFlutterVersion();
+            const config: Partial<ProjectConfig> = {
+              project_path: ".",
+              git_repo: gitRepo,
+              git_token: "",
+              git_username: "",
+              ...(flutterVersion ? { flutter_version: flutterVersion } : {}),
+            };
+            const newProj = await client.projects.create({ name, config });
+            const newId = newProj.project?.id;
 
-            if (!res.ok) {
-              const text = await res.text();
-              return `Error creating project: ${text || res.statusText} (Status: ${res.status})`;
-            }
-
-            const newProj = await res.json();
-            const newId = newProj.id ?? newProj.project_id;
-            
             if (newId) {
               handleProjectClick(newId);
               return `✓ Project "${name}" (ID: ${newId}) successfully created, initialized and selected!`;
             }
             return `✓ Project "${name}" successfully created!`;
-          } catch (err: any) {
-            return `Error: ${err.message || "An unexpected error occurred."}`;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+            return `Error: ${message}`;
           }
         }
         return `Error: Unknown create action "${subAction || ""}". Try "flotio create project <name>"`;
@@ -551,25 +506,13 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
             return 'Error: Project name or ID is required. Example: flotio select project "My App" or flotio select project 12';
           }
 
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!apiBaseUrl) return "Error: NEXT_PUBLIC_API_URL is not configured.";
-
           try {
-            const res = await request(`${apiBaseUrl}/project`);
-            if (!res.ok) {
-              return `Error: Failed to fetch projects (status: ${res.status})`;
-            }
-            const data = await res.json();
-            let projects: any[] = [];
-            if (Array.isArray(data)) {
-              projects = data;
-            } else if (data && typeof data === "object") {
-              projects = Array.isArray(data.projects) ? data.projects : [];
-            }
+            const data = await client.projects.list();
+            const projects: Project[] = data.projects ?? [];
 
             // Find project by ID or by name
             const targetStr = String(target).trim();
-            let foundProject = projects.find(p => String(p.id ?? p.project_id) === targetStr);
+            let foundProject = projects.find(p => String(p.id) === targetStr);
 
             if (!foundProject) {
               foundProject = projects.find(
@@ -583,15 +526,16 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
               );
             }
 
-            if (foundProject) {
-              const pid = foundProject.id ?? foundProject.project_id;
+            if (foundProject && foundProject.id !== undefined && foundProject.id !== null) {
+              const pid = foundProject.id;
               handleProjectClick(pid);
               return `✓ Selected project "${foundProject.name}" (ID: ${pid}).`;
             }
 
             return `Error: Project "${target}" not found.`;
-          } catch (err: any) {
-            return `Error: ${err.message || "An unexpected error occurred."}`;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+            return `Error: ${message}`;
           }
         }
         return `Error: Unknown select action "${subAction || ""}". Try "flotio select project <name-or-id>"`;
@@ -612,21 +556,9 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
       if (action === "project") {
         const subAction = positional[1];
         if (subAction === "list") {
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!apiBaseUrl) return "Error: NEXT_PUBLIC_API_URL is not configured.";
-
           try {
-            const res = await request(`${apiBaseUrl}/project`);
-            if (!res.ok) {
-              return `Error: Failed to fetch projects (status: ${res.status})`;
-            }
-            const data = await res.json();
-            let projects: any[] = [];
-            if (Array.isArray(data)) {
-              projects = data;
-            } else if (data && typeof data === "object") {
-              projects = Array.isArray(data.projects) ? data.projects : [];
-            }
+            const data = await client.projects.list();
+            const projects: Project[] = data.projects ?? [];
 
             if (projects.length === 0) {
               return "No projects found.";
@@ -700,21 +632,14 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                     <tr>
                       <th>ID</th>
                       <th>Name</th>
-                      <th>Status</th>
                       <th>Git Repository</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {projects.map((p: any) => {
-                      const id = p.id ?? p.project_id ?? "";
+                    {projects.map((p: Project) => {
+                      const id = p.id ?? "";
                       const name = p.name ?? "";
-                      const status = (p.status ?? "UNKNOWN").toUpperCase();
-                      const repo = p.git_repo ?? "None";
-
-                      let badgeClass = "badge-unknown";
-                      if (status === "READY" || status === "SUCCESS") badgeClass = "badge-ready";
-                      else if (status === "BUILDING" || status === "PENDING") badgeClass = "badge-building";
-                      else if (status === "FAILED" || status === "ERROR") badgeClass = "badge-failed";
+                      const repo = p.config?.git_repo ?? "None";
 
                       return (
                         <tr 
@@ -725,17 +650,6 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                         >
                           <td style={{ color: '#ce9178' }}>{id}</td>
                           <td style={{ fontWeight: 600 }}>{name}</td>
-                          <td>
-                            <span className={`badge ${badgeClass}`}>
-                              <span style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                backgroundColor: status === "READY" || status === "SUCCESS" ? '#4ade80' : (status === "BUILDING" || status === "PENDING" ? '#fb923c' : (status === "FAILED" || status === "ERROR" ? '#f87171' : '#9ca3af'))
-                              }} />
-                              {status}
-                            </span>
-                          </td>
                           <td>
                             {repo !== "None" ? (
                               <a href={repo} target="_blank" rel="noopener noreferrer" className="repo-link" onClick={(e) => e.stopPropagation()}>
@@ -752,8 +666,9 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                 </table>
               </div>
             );
-          } catch (err: any) {
-            return `Error: ${err.message || "An unexpected error occurred."}`;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+            return `Error: ${message}`;
           }
         }
         return `Error: Unknown project action "${subAction || ""}". Try "flotio project list"`;
@@ -764,26 +679,9 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
         if (subAction === "list") {
           const projectId = positional[2] || flags.project || flags.project_id || contextProjectId;
 
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!apiBaseUrl) return "Error: NEXT_PUBLIC_API_URL is not configured.";
-
           try {
-            const url = projectId ? `${apiBaseUrl}/env?project_id=${projectId}` : `${apiBaseUrl}/env`;
-            const res = await request(url);
-            if (!res.ok) {
-              return `Error: Failed to fetch env variables (status: ${res.status})`;
-            }
-            const data = await res.json();
-            
-            // Extract env variables
-            let envs: any[] = [];
-            if (Array.isArray(data?.envs)) envs = data.envs;
-            else if (Array.isArray(data)) envs = data;
-            else if (data && typeof data === "object") {
-              envs = Object.values(data).flatMap((value) =>
-                Array.isArray(value) ? value : value ? [value] : []
-              );
-            }
+            const data = await client.envs.list(projectId ? Number(projectId) : undefined);
+            const envs: EnvDTO[] = data.envs ?? [];
 
             if (envs.length === 0) {
               return projectId ? `No environment variables found for project ${projectId}.` : "No environment variables found.";
@@ -849,14 +747,14 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                     </tr>
                   </thead>
                   <tbody>
-                    {envs.map((env: any) => {
-                      const id = env.id ?? env.ID ?? "";
+                    {envs.map((env: EnvDTO) => {
+                      const id = env.id ?? "";
                       const key = env.key ?? "";
                       const val = env.value ?? "";
                       const maskedValue = val.length > 8 ? `${val.substring(0, 3)}...${val.substring(val.length - 3)}` : "••••••••";
                       const type = (env.type ?? "env").toLowerCase();
                       const path = env.path ?? "-";
-                      const isBase64 = env.is_base64 || env.isBase64 ? "YES" : "NO";
+                      const isBase64 = env.is_base64 ? "YES" : "NO";
 
                       return (
                         <tr key={id || key}>
@@ -877,8 +775,9 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                 </table>
               </div>
             );
-          } catch (err: any) {
-            return `Error: ${err.message || "An unexpected error occurred."}`;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+            return `Error: ${message}`;
           }
         }
         return `Error: Unknown env action "${subAction || ""}". Try "flotio env list <project-id>"`;
@@ -891,9 +790,6 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
           if (!projectId) {
             return "Error: Project ID is required. Example: flotio build start <project-id>";
           }
-
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-          if (!apiBaseUrl) return "Error: NEXT_PUBLIC_API_URL is not configured.";
 
           const platform = flags.platform || "android";
           const build_mode = flags.mode || flags.environment || "release";
@@ -908,20 +804,12 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
               flutter_channel: "stable",
             };
 
-            const res = await request(`${apiBaseUrl}/project/${projectId}/build`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-              const errorText = await res.text();
-              return `Error starting build: ${errorText || res.statusText} (Status: ${res.status})`;
-            }
+            await client.builds.start(Number(projectId), payload);
 
             return `Success: Build successfully started for project ${projectId}.`;
-          } catch (err: any) {
-            return `Error: ${err.message || "An unexpected error occurred."}`;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+            return `Error: ${message}`;
           }
         }
         return `Error: Unknown build action "${subAction || ""}". Try "flotio build start <project-id>"`;

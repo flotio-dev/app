@@ -23,26 +23,23 @@ const BuildHeader: React.FC<BuildHeaderProps> = ({
 }) => {
   const theme = useTheme();
   const [openBuildModal, setOpenBuildModal] = useState(false);
-  const { request } = useApi();
+  const { client } = useApi();
   const [projectName, setProjectName] = useState<string>("");
 
   useEffect(() => {
     const fetchProject = async () => {
       if (!projectId) return;
       try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!res.ok) throw new Error('Failed to fetch project config');
-        const data = await res.json();
-        setProjectName(data.project?.name || data.config?.project_path || projectId);
+        // ProjectConfigResponse has no `project` key (P-11): fetch the project
+        // itself for the display name.
+        const projectResp = await client.projects.get(Number(projectId));
+        setProjectName(projectResp.project?.name || projectId);
       } catch {
         setProjectName(projectId);
       }
     };
     fetchProject();
-  }, [projectId, request]);
+  }, [projectId, client]);
 
   const handleStartBuild = () => {
     setOpenBuildModal(true);

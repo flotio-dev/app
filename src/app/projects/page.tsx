@@ -1,28 +1,53 @@
-
 "use client";
 
 import React, { useState } from "react";
-import SideMenu from '@/components/common/SideMenu';
-import ProjectsHeader from '@/components/projects/ProjectsHeader';
-import ListingProjects from '@/components/projects/ListingProjects';
-import { useTheme } from "@mui/material/styles";
+import Link from "next/link";
+import { AppShell } from "@/components/layout/AppShell";
+import ListingProjects from "@/components/projects/ListingProjects";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { FiPlus, FiSearch } from "react-icons/fi";
 
 export default function ProjectsPage() {
-  const theme = useTheme();
   const [search, setSearch] = useState("");
+
   return (
-    <div className="min-h-screen flex">
-      <div className="fixed left-0 top-0 h-screen w-64 z-30">
-        <SideMenu />
-      </div>
-      <main className="flex-1 flex flex-col min-h-screen" style={{ paddingLeft: 256 }}>
-        <header className="h-16 flex items-center px-6" style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <ProjectsHeader search={search} onSearchChange={setSearch} />
-        </header>
-        <div className="py-10 px-8">
-          <ListingProjects search={search} />
+    <AppShell
+      headerActions={
+        <div className="flex items-center gap-3">
+          <div className="w-48 sm:w-64">
+            <Input
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              leftElement={<FiSearch className="h-3.5 w-3.5" />}
+              className="h-8 text-xs bg-zinc-900/80 border-zinc-800"
+            />
+          </div>
+          <Link href="/new-project">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<FiPlus className="h-3.5 w-3.5" />}
+            >
+              New Project
+            </Button>
+          </Link>
         </div>
-      </main>
-    </div>
+      }
+    >
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Projects</h1>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Manage your connected mobile application repositories and CI/CD pipelines.
+            </p>
+          </div>
+        </div>
+
+        <ListingProjects search={search} />
+      </div>
+    </AppShell>
   );
 }

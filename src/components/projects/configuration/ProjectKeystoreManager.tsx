@@ -23,23 +23,17 @@ import { useProjectConfig } from '@/context/ProjectConfigContext';
 import Chip from "@mui/material/Chip";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
+import type { KeystoreDTO } from "@/lib/api/types";
 
 interface Props {
   projectId?: string | undefined;
   refreshKey?: number;
 }
 
-type Keystore = {
-  id?: number;
-  name?: string;
-  key_alias?: string;
-  createdAt?: string;
-};
-
 export default function ProjectKeystoreManager({ projectId: propProjectId, refreshKey }: Props) {
   const theme = useTheme();
-  const { request } = useApi();
-  const [keystores, setKeystores] = useState<Keystore[]>([]);
+  const { client } = useApi();
+  const [keystores, setKeystores] = useState<KeystoreDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
   const [name, setName] = useState("");
@@ -58,11 +52,9 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
     const load = async () => {
       setLoading(true);
       try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/keystore`);
-        if (!res.ok) throw new Error("Failed to fetch keystores");
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : Array.isArray(data.keystores) ? data.keystores : [];
-        if (mounted) setKeystores(list as Keystore[]);
+        const data = await client.keystores.list();
+        const list = data.keystores ?? [];
+        if (mounted) setKeystores(list);
       } catch (e) {
         console.error(e);
       } finally {
@@ -71,15 +63,15 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
     };
     load();
     return () => { mounted = false; };
-  }, [request, refreshKey]);
+  }, [client, refreshKey]);
 
   const { config, refresh } = useProjectConfig();
 
   useEffect(() => {
     if (!projectId) return;
-    const raw = config?.keystore_id ?? config?.keystoreId ?? null;
-    const next = raw === 0 || raw === "0" ? null : (raw ? Number(raw) : null);
-    setAttachedId(next as number | null);
+    const raw = config?.keystore_id ?? null;
+    const next = raw === 0 ? null : (raw ? Number(raw) : null);
+    setAttachedId(next);
   }, [projectId, config]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,29 +85,19 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
       const raw = await file.arrayBuffer();
       const b64 = Buffer.from(raw).toString("base64");
       const payload = { name, keystore_file: b64, store_password: storePassword, key_alias: keyAlias, key_password: keyPassword };
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/keystore`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Failed to create keystore");
-      const createdData = await res.json();
-      const created = createdData.keystore || createdData || null;
+      const createdData = await client.keystores.create(payload);
+      const created = createdData.keystore ?? null;
 
       // refresh list
-      const listRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/keystore`);
-      const listData = await listRes.json();
-      const list = Array.isArray(listData) ? listData : Array.isArray(listData.keystores) ? listData.keystores : [];
-      setKeystores(list as Keystore[]);
+      const listData = await client.keystores.list();
+      const list = listData.keystores ?? [];
+      setKeystores(list);
 
       // attach to project config if projectId provided
       if (created && created.id && projectId) {
         try {
           // POST minimal payload to set keystore_id
-          const postRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keystore_id: created.id })
-          });
-          if (!postRes.ok) throw new Error('Failed to update project config');
+          await client.projects.updateConfig(Number(projectId), { keystore_id: created.id });
           setSnack({ open: true, message: 'Keystore created and attached to project', severity: 'success' });
           setAttachedId(created.id);
           // refresh provider
@@ -137,15 +119,12 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
   const deleteKeystore = async (id?: number) => {
     if (!id) return;
     try {
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/keystore/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      await client.keystores.remove(id);
       setKeystores((cur) => cur.filter((k) => k.id !== id));
       // if deleted keystore was attached, clear project config
         if (projectId && attachedId === id) {
         try {
-          await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keystore_id: null })
-          });
+          await client.projects.updateConfig(Number(projectId), { keystore_id: undefined });
           setAttachedId(null);
           try { await refresh(); } catch {}
         } catch (e) {
@@ -163,10 +142,7 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
     if (!projectId || !id) return;
         (async () => {
       try {
-        const postRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keystore_id: id })
-        });
-        if (!postRes.ok) throw new Error('Failed to attach keystore to project');
+        await client.projects.updateConfig(Number(projectId), { keystore_id: id });
         setSnack({ open: true, message: 'Keystore attached to project', severity: 'success' });
         setAttachedId(id);
         try { await refresh(); } catch {}
@@ -181,10 +157,7 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
     if (!projectId) return;
     (async () => {
       try {
-        const postRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/config`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keystore_id: null })
-        });
-        if (!postRes.ok) throw new Error('Failed to detach keystore');
+        await client.projects.updateConfig(Number(projectId), { keystore_id: undefined });
         setAttachedId(null);
         try { await refresh(); } catch {}
         setSnack({ open: true, message: 'Keystore detached from project', severity: 'success' });
@@ -228,7 +201,7 @@ export default function ProjectKeystoreManager({ projectId: propProjectId, refre
               </IconButton>
             </Box>
           }>
-            <ListItemText primary={k.name || `Keystore #${k.id}`} secondary={k.createdAt ? new Date(k.createdAt).toLocaleString() : ''} />
+            <ListItemText primary={k.name || `Keystore #${k.id}`} secondary={k.created_at ? new Date(k.created_at).toLocaleString() : ''} />
           </ListItem>
         ))}
         {keystores.length === 0 && !loading && (

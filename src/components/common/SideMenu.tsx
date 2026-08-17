@@ -24,7 +24,8 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import BuildIcon from "@mui/icons-material/Build";
 import { useAuth } from "@/auth/AuthContext";
 import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
-import { useApi } from "@/hooks/useApi";
+import { useApi, clearLocalSession } from "@/hooks/useApi";
+import type { Project } from "@/lib/api/types";
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
@@ -38,22 +39,19 @@ function SideMenu() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuth();
-  let projects: any[] = [];
+  let projects: Project[] = [];
   try {
     const dashboardData = useDashboardData();
     projects = dashboardData?.projects ?? [];
   } catch (err) {
     projects = [];
   }
-  const { request } = useApi();
-  const [localProjects, setLocalProjects] = React.useState<any[]>([]);
+  const { client } = useApi();
+  const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
 
   React.useEffect(() => {
     let mounted = true;
     let fetchedAlready = false;
-
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-    if (!apiBaseUrl) return;
 
     const doFetch = async () => {
       // If dashboard already provides projects, don't fetch
@@ -62,22 +60,18 @@ function SideMenu() {
       fetchedAlready = true;
 
       try {
-        const res = await request(`${apiBaseUrl}/project`);
-        if (!res.ok) return;
-        const data = await res.json();
-        let fetched: any[] = [];
-        if (Array.isArray(data)) fetched = data;
-        else if (data && typeof data === 'object') fetched = Array.isArray((data as any).projects) ? (data as any).projects : [];
-        if (mounted) setLocalProjects(fetched);
+        const data = await client.projects.list();
+        if (mounted) setLocalProjects(data.projects ?? []);
       } catch (e) {
         // ignore
       }
     };
 
-    // Run once on mount only to avoid re-fetching when `request` identity changes
+    // Run once on mount only to avoid re-fetching when `client` identity changes
     doFetch();
 
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -119,13 +113,7 @@ function SideMenu() {
   const handleLogout = async () => {
     handleClose();
 
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-    } catch {
-      // Keep client-side logout behavior even if the API call fails.
-    }
+    await clearLocalSession();
 
     clearAuth();
     router.replace("/auth/login");
@@ -146,16 +134,15 @@ function SideMenu() {
       return sorted;
     }
 
-    const activeProject = source.find((project) => `${project.id ?? project.project_id}` === `${projectId}`);
-    const activeAlreadyListed = sorted.some((project) => `${project.id ?? project.project_id}` === `${projectId}`);
+    const activeProject = source.find((project) => `${project.id}` === `${projectId}`);
+    const activeAlreadyListed = sorted.some((project) => `${project.id}` === `${projectId}`);
 
     if (activeAlreadyListed) {
       return sorted;
     }
 
     const activeEntry = activeProject ?? {
-      id: projectId,
-      project_id: projectId,
+      id: Number(projectId),
       name: `Project ${projectId}`,
     };
 
@@ -265,7 +252,7 @@ function SideMenu() {
                 {item.label === "Projects" && recentProjects.length > 0 && (
                   <Box sx={{ pl: 3, pr: 0, mt: 0.5 }}>
                     {recentProjects.map((proj) => {
-                      const pid = proj.id ?? proj.project_id;
+                      const pid = proj.id;
                       return (
                         <Box key={pid} sx={{ width: '100%' }}>
                           <ListItem disablePadding sx={{ mb: 0.25, borderRadius: 1.5 }}>

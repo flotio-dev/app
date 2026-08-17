@@ -1,18 +1,13 @@
 "use client";
 
 import React from "react";
-import Button from "@mui/material/Button";
-import TerminalIcon from "@mui/icons-material/Terminal";
-import { useTheme } from "@mui/material/styles";
 import { useParams } from "next/navigation";
 import { useCliModal } from "@/context/CliModalContext";
+import { FiTerminal } from "react-icons/fi";
 
 export default function BoutonCLI() {
-  const theme = useTheme();
   const params = useParams();
   const { toggleCli, isOpen: isCliModalOpen } = useCliModal();
-
-  // Extract project ID if it exists in the URL parameters
   const projectId = params?.id ? String(params.id) : null;
 
   const handleClick = () => {
@@ -20,24 +15,19 @@ export default function BoutonCLI() {
   };
 
   return (
-    <Button
-      color="inherit"
+    <button
+      type="button"
       onClick={handleClick}
-      sx={{
-        minWidth: 40,
-        p: 1,
-        borderRadius: 1,
-        background: isCliModalOpen ? theme.palette.action.selected : "transparent",
-        color: isCliModalOpen ? theme.palette.primary.main : theme.palette.text.secondary,
-        "&:hover": {
-          background: theme.palette.action.hover,
-          color: theme.palette.primary.main,
-        },
-      }}
-      title="Open CLI Terminal"
+      title="Open Flotio CLI"
       aria-label="CLI Terminal"
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+        isCliModalOpen
+          ? "bg-cyan-950/40 border-cyan-500/50 text-cyan-300 shadow-xs"
+          : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700"
+      }`}
     >
-      <TerminalIcon />
-    </Button>
+      <FiTerminal className="h-3.5 w-3.5 text-cyan-400" />
+      <span>CLI</span>
+    </button>
   );
 }

@@ -9,6 +9,7 @@ import { useApi } from '@/hooks/useApi';
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useProjectConfig } from '@/context/ProjectConfigContext';
+import type { BuildDTO } from '@/lib/api/types';
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
 
@@ -29,10 +30,10 @@ const ProjectsHeader: React.FC = () => {
 	const theme = useTheme();
 	const router = useRouter();
 	const params = useParams();
-	const { request } = useApi();
+	const { client } = useApi();
 	const { project, config } = useProjectConfig();
 	const [projectName, setProjectName] = useState<string>("");
-	const [latestSuccessBuild, setLatestSuccessBuild] = useState<any>(null);
+	const [latestSuccessBuild, setLatestSuccessBuild] = useState<BuildDTO | null>(null);
 
 	useEffect(() => {
 		setProjectName(project?.name || config?.project_path || '');
@@ -42,18 +43,15 @@ const ProjectsHeader: React.FC = () => {
 
 		const fetchBuilds = async () => {
 			try {
-				const buildsRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
-				if (buildsRes.ok) {
-					const buildsData = await buildsRes.json();
-					const builds = buildsData.builds || [];
-					const sortedBuilds = builds.sort((a: any, b: any) =>
-						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-					);
-					if (sortedBuilds.length > 0) {
-						const lastBuild = sortedBuilds[0];
-						if (lastBuild.status?.toLowerCase() === 'success') {
-							setLatestSuccessBuild(lastBuild);
-						}
+				const buildsData = await client.builds.list(Number(projectId));
+				const builds = buildsData.builds || [];
+				const sortedBuilds = builds.sort((a, b) =>
+					new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime()
+				);
+				if (sortedBuilds.length > 0) {
+					const lastBuild = sortedBuilds[0];
+					if (lastBuild.status?.toLowerCase() === 'success') {
+						setLatestSuccessBuild(lastBuild);
 					}
 				}
 			} catch (error) {
@@ -62,7 +60,7 @@ const ProjectsHeader: React.FC = () => {
 		};
 
 		void fetchBuilds();
-	}, [params.id, request, project, config]);
+	}, [params.id, client, project, config]);
 
 	const handleDownload = async () => {
 		if (!latestSuccessBuild || !params.id) {
@@ -71,16 +69,11 @@ const ProjectsHeader: React.FC = () => {
 		}
 
 		try {
-			const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${params.id}/build/${latestSuccessBuild.id}/download`);
-			if (res.ok) {
-				const data = await res.json();
-				if (data.download_url) {
-					window.open(data.download_url, "_blank");
-				} else {
-					alert("Download URL not found.");
-				}
+			const data = await client.builds.download(Number(params.id), Number(latestSuccessBuild.id));
+			if (data.download_url) {
+				window.open(data.download_url, "_blank");
 			} else {
-				alert("Failed to get download URL.");
+				alert("Download URL not found.");
 			}
 		} catch (error) {
 			console.error("Error downloading apk:", error);

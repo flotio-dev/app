@@ -120,7 +120,8 @@ async function handleSessionExpired(
 ): Promise<never> {
   state.onSessionExpired();
   try {
-    await state.fetchImpl(LOGOUT_ENDPOINT, { method: "POST" });
+    const { fetchImpl } = state;
+    await fetchImpl(LOGOUT_ENDPOINT, { method: "POST" });
   } catch {
     // Logout failure must not mask the session-expired error.
   }
@@ -132,7 +133,8 @@ async function handleSessionExpired(
  * onTokensRefreshed → return the new access token (contract §4.5.3 / FC-16b).
  */
 async function rotateOnce(state: ClientState): Promise<string> {
-  const refreshRes = await state.fetchImpl(`${state.baseUrl}/auth/refresh`, {
+  const { fetchImpl } = state;
+  const refreshRes = await fetchImpl(`${state.baseUrl}/auth/refresh`, {
     method: "POST",
     credentials: "include",
   });
@@ -159,7 +161,7 @@ async function rotateOnce(state: ClientState): Promise<string> {
   // Persist the rotated refresh token BEFORE the @me resync and BEFORE the retry.
   if (refreshToken) {
     try {
-      await state.fetchImpl(SESSION_ENDPOINT, {
+      await fetchImpl(SESSION_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -170,7 +172,7 @@ async function rotateOnce(state: ClientState): Promise<string> {
   }
 
   // Re-sync the user with the new access token.
-  const meRes = await state.fetchImpl(`${state.baseUrl}/auth/@me`, {
+  const meRes = await fetchImpl(`${state.baseUrl}/auth/@me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!meRes.ok) {
@@ -227,11 +229,12 @@ async function coreRequest<Op extends ApiOperation>(
   const isPublic = PUBLIC_PATHS.has(path);
   const auth = options.auth !== false && !isPublic;
 
+  const { fetchImpl } = state;
   const doFetch = (token: string | null): Promise<Response> => {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";
     if (auth && token) headers["Authorization"] = `Bearer ${token}`;
-    return state.fetchImpl(url, {
+    return fetchImpl(url, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,

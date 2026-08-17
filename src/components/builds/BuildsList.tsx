@@ -2,442 +2,274 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Chip from "@mui/material/Chip";
-import IconButton from "@mui/material/IconButton";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogActions from "@mui/material/DialogActions";
-import Button from "@mui/material/Button";
-import { useTheme } from "@mui/material/styles";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DownloadIcon from "@mui/icons-material/Download";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { useBuildRefresh } from "@/context/BuildRefreshContext";
-import { format, formatDuration, intervalToDuration } from "date-fns";
-import { fr } from "date-fns/locale";
-
-interface APIBuild {
-  apk_url: string;
-  container_id: string;
-  created_at: string;
-  duration: number;
-  id: number;
-  platform: string;
-  project_id: number;
-  status: string;
-  updated_at: string;
-}
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
+import type { BuildDTO } from "@/lib/api/types";
+import {
+  FiPlay,
+  FiDownload,
+  FiTrash2,
+  FiClock,
+  FiGitBranch,
+  FiGitCommit,
+  FiArrowUpRight,
+  FiLoader,
+  FiCheckCircle,
+  FiXCircle,
+} from "react-icons/fi";
 
 interface BuildsListProps {
   projectId?: string;
 }
 
-function extractBuilds(payload: unknown): APIBuild[] {
-  if (Array.isArray(payload)) {
-    return payload as APIBuild[];
-  }
-
-  if (!payload || typeof payload !== "object") {
-    return [];
-  }
-
-  const data = payload as {
-    builds?: APIBuild[];
-    Builds?: APIBuild[];
-    data?: { builds?: APIBuild[]; Builds?: APIBuild[] };
-    details?: { builds?: APIBuild[]; Builds?: APIBuild[] };
-    project?: { builds?: APIBuild[]; Builds?: APIBuild[] };
-  };
-
-  return (
-    data.builds ||
-    data.Builds ||
-    data.data?.builds ||
-    data.data?.Builds ||
-    data.details?.builds ||
-    data.details?.Builds ||
-    data.project?.builds ||
-    data.project?.Builds ||
-    []
-  );
-}
-
 const BuildsList: React.FC<BuildsListProps> = ({ projectId }) => {
-  const theme = useTheme();
   const router = useRouter();
-  const { request } = useApi();
+  const { client } = useApi();
   const { subscribeToRefresh } = useBuildRefresh();
-  const [builds, setBuilds] = useState<APIBuild[]>([]);
-  const fetchingProjectIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedBuild, setSelectedBuild] = useState<APIBuild | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const [builds, setBuilds] = useState<BuildDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isMountedRef = useRef(true);
 
   const fetchBuilds = useCallback(async () => {
     if (!projectId) {
       setBuilds([]);
-      fetchingProjectIdRef.current = null;
       return;
     }
-
-    if (fetchingProjectIdRef.current === projectId) {
-      return;
-    }
-
-    fetchingProjectIdRef.current = projectId;
 
     try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`
-      );
-      if (!response.ok) throw new Error("Failed to fetch builds");
-      const data = await response.json();
+      const data = await client.builds.list(Number(projectId));
       if (isMountedRef.current) {
-        setBuilds(extractBuilds(data));
+        const sorted = (data.builds ?? []).sort(
+          (a, b) =>
+            new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()
+        );
+        setBuilds(sorted);
       }
     } catch (error) {
       console.error("Failed to fetch builds:", error);
     } finally {
-      if (fetchingProjectIdRef.current === projectId) {
-        fetchingProjectIdRef.current = null;
-      }
+      if (isMountedRef.current) setIsLoading(false);
     }
-  }, [projectId, request]);
+  }, [projectId, client]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchBuilds();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchBuilds]);
 
   // Subscribe to build refresh events
   useEffect(() => {
     if (!projectId) return;
-
     const unsubscribe = subscribeToRefresh(projectId, () => {
       fetchBuilds();
     });
-
     return unsubscribe;
   }, [projectId, subscribeToRefresh, fetchBuilds]);
 
+  // Auto-polling interval
   useEffect(() => {
-    fetchBuilds();
-  }, [fetchBuilds]);
-
-  useEffect(() => {
-    if (!projectId) {
-      return;
-    }
-
+    if (!projectId) return;
     const intervalId = window.setInterval(() => {
       fetchBuilds();
-    }, 10000);
-
+    }, 8000);
     return () => {
       window.clearInterval(intervalId);
     };
   }, [projectId, fetchBuilds]);
 
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>, build: APIBuild) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-    setSelectedBuild(build);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedBuild(null);
-  };
-
-  const handleDownload = async () => {
-    if (!selectedBuild || !projectId) {
-      handleMenuClose();
-      return;
-    }
-
-    try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${selectedBuild.id}/download`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.download_url) {
-          window.open(data.download_url, "_blank");
-        } else {
-          alert("Lien de téléchargement non trouvé.");
-        }
-      } else {
-        console.error("Failed to fetch download URL");
-        alert("Erreur lors de la récupération du lien de téléchargement.");
-      }
-    } catch (error) {
-      console.error("Error downloading build:", error);
-      alert("Erreur lors de la demande de téléchargement.");
-    } finally {
-      handleMenuClose();
-    }
-  };
-
-  const handleDeleteClick = () => {
-    setDeleteDialogOpen(true);
-    // Keep selectedBuild set for the dialog
-    setAnchorEl(null);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedBuild || !projectId) return;
-
+  const handleDelete = async (buildId: number) => {
+    if (!projectId) return;
     setIsDeleting(true);
     try {
-      const response = await request(
-        `${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${selectedBuild.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Delete response:", data);
-        setBuilds((prev) => prev.filter((b) => b.id !== selectedBuild.id));
-        setDeleteDialogOpen(false);
-        setSelectedBuild(null);
-      } else {
-        const errorText = await response.text();
-        console.error("Failed to delete build:", errorText);
-        alert(`Erreur lors de la suppression du build: ${errorText}`);
-      }
-    } catch (error) {
-      console.error("Error deleting build:", error);
-      alert("Erreur lors de la suppression du build");
+      await client.builds.remove(Number(projectId), buildId);
+      setBuilds((prev) => prev.filter((b) => b.id !== buildId));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error("Failed to delete build:", err);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setSelectedBuild(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return { bg: "#d1fae5", text: "#047857", label: "Success" };
-      case "failed":
-        return { bg: "#fee2e2", text: "#dc2626", label: "Failed" };
-      case "building":
-      case "running":
-        return { bg: "#fef3c7", text: "#d97706", label: "Running" };
-      case "waiting":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
-      case "pending":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
-      case "cancelled":
-        return { bg: "#e0f2fe", text: "#0284c7", label: "Cancelled" };
-      default:
-        return { bg: "#f3f4f6", text: "#374151", label: "Unknown" };
+  const handleDownload = async (e: React.MouseEvent, buildId: number) => {
+    e.stopPropagation();
+    if (!projectId) return;
+    try {
+      const data = await client.builds.download(Number(projectId), buildId);
+      if (data.download_url) {
+        window.open(data.download_url, "_blank");
+      }
+    } catch (err) {
+      console.error("Failed to download build:", err);
     }
   };
 
+  const getStatusBadge = (status?: string) => {
+    const s = (status || "").toLowerCase();
+    if (s === "success") return <Badge variant="success" dot>Success</Badge>;
+    if (s === "failed") return <Badge variant="failed" dot>Failed</Badge>;
+    if (["building", "running", "pending"].includes(s))
+      return <Badge variant="running" dot>Building</Badge>;
+    if (["waiting", "queued"].includes(s))
+      return <Badge variant="queued" dot>Queued</Badge>;
+    return <Badge variant="neutral">{status || "Unknown"}</Badge>;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((n) => (
+          <div
+            key={n}
+            className="h-20 rounded-xl border border-zinc-800 bg-zinc-950 p-4 animate-pulse"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (builds.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 text-center">
+        <FiPlay className="h-10 w-10 text-zinc-600 mb-3" />
+        <h3 className="text-sm font-semibold text-zinc-200">No build history</h3>
+        <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+          You haven't run any builds for this project yet. Trigger a manual build to test the pipeline.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Builds List */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {builds.length === 0 ? (
-          <Typography color="textSecondary" align="center">
-            Aucun build trouvé.
-          </Typography>
-        ) : (
-          builds.map((build) => {
-            const statusColor = getStatusColor(build.status);
-            return (
-              <Paper
-                key={build.id}
-                elevation={0}
-                onClick={() => router.push(`/projects/${projectId}/builds/${build.id}`)}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  p: 2,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 1.5,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    background: theme.palette.action.hover,
-                    boxShadow: 1,
-                  },
-                }}
-              >
-                {/* ID */}
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{
-                    color: theme.palette.primary.main,
-                    minWidth: '100px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  #{build.id}
-                </Typography>
+    <div className="space-y-3">
+      {builds.map((build) => {
+        const buildId = build.id;
+        const timeAgo = build.created_at
+          ? formatDistanceToNow(parseISO(build.created_at), { addSuffix: true })
+          : "recently";
+        const formattedDate = build.created_at
+          ? format(new Date(build.created_at), "MMM d, yyyy HH:mm")
+          : "";
 
-                {/* Status Chip */}
-                <Chip
-                  label={statusColor.label}
-                  size="small"
-                  sx={{
-                    background: statusColor.bg,
-                    color: statusColor.text,
-                    fontWeight: 600,
-                    height: 24,
-                    borderRadius: 0.75,
-                    minWidth: '100px',
-                  }}
-                />
-
-                {/* Start Time */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    width: '180px',
-                    minWidth: '180px', // Fixed width for alignment
-                    paddingLeft: 4, // Reduced padding, using fixed width for spacing
-                  }}
-                >
-                  {format(new Date(build.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
-                </Typography>
-
-                {/* Duration */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    width: '200px',
-                    minWidth: '200px', // Fixed width for alignment
-                    textAlign: 'left'
-                  }}
-                >
-                  {["building", "running", "pending"].includes(build.status.toLowerCase())
-                    ? "Running..."
-                    : build.duration
-                      ? formatDuration(intervalToDuration({ start: 0, end: build.duration * 1000 }), { locale: fr })
-                      : '-'}
-                </Typography>
-
-                {/* Description / Platform */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    flex: 1, // Allow this column to take up remaining space
-                    minWidth: '150px',
-                    paddingLeft: 4,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    textAlign: 'right', // Align to right so it sits nicely against the actions
-                  }}
-                >
-                  {build.platform}
-                </Typography>
-
-                {/* Actions */}
-                <Box sx={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleMenuClick(e, build)}
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      '&:hover': { background: theme.palette.action.hover },
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Paper>
-            );
-          })
-        )}
-      </Box>
-
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        onClick={(e) => e.stopPropagation()}
-        PaperProps={{
-          elevation: 3,
-          sx: { minWidth: 150 },
-        }}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-      >
-        {selectedBuild?.status.toLowerCase() === "success" && selectedBuild.apk_url && (
-          <MenuItem onClick={handleDownload} sx={{ color: theme.palette.text.primary }}>
-            <ListItemIcon>
-              <DownloadIcon fontSize="small" color="primary" />
-            </ListItemIcon>
-            <ListItemText>Download APK</ListItemText>
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleDeleteClick} sx={{ color: theme.palette.error.main }}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText>Delete Build</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      {/* Delete Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to permanently delete Build #{selectedBuild?.id}? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            color="error"
-            variant="contained"
-            autoFocus
-            disabled={isDeleting}
+        return (
+          <div
+            key={buildId}
+            onClick={() => router.push(`/projects/${projectId}/builds/${buildId}`)}
+            className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-zinc-800/80 bg-zinc-950/60 hover:bg-zinc-900/50 hover:border-zinc-700 transition-all duration-150 cursor-pointer gap-4"
           >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+            {/* Left: Status + Build ID + Commit */}
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 shrink-0">
+                {build.status?.toLowerCase() === "success" ? (
+                  <FiCheckCircle className="h-4 w-4 text-emerald-400" />
+                ) : build.status?.toLowerCase() === "failed" ? (
+                  <FiXCircle className="h-4 w-4 text-rose-400" />
+                ) : (
+                  <FiLoader className="h-4 w-4 text-amber-400 animate-spin" />
+                )}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-sm font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors font-mono">
+                    #{buildId}
+                  </span>
+                  {getStatusBadge(build.status)}
+                  <span className="text-xs px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 uppercase font-mono">
+                    {build.build_mode || "release"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 flex-wrap">
+                  <span className="flex items-center gap-1 font-mono text-[11px] text-zinc-300">
+                    <FiGitBranch className="h-3 w-3 text-zinc-500" />
+                    {build.git_branch || "main"}
+                  </span>
+                  <span className="text-zinc-500 text-[11px]">{formattedDate}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Duration & Actions */}
+            <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+              <div className="text-right hidden md:block">
+                <div className="text-xs font-mono text-zinc-300">
+                  {build.duration ? `${build.duration}s` : "—"}
+                </div>
+                <div className="text-[10px] text-zinc-500">{timeAgo}</div>
+              </div>
+
+              {build.status?.toLowerCase() === "success" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<FiDownload className="h-3.5 w-3.5" />}
+                  onClick={(e) => buildId && handleDownload(e, buildId)}
+                >
+                  APK
+                </Button>
+              )}
+
+              <button
+                type="button"
+                title="Delete Build"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (buildId) setConfirmDeleteId(buildId);
+                }}
+                className="p-2 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Delete Build Record"
+        description="Are you sure you want to permanently delete this build record and its associated logs?"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDeleteId(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDeleting}
+              onClick={() => confirmDeleteId !== null && handleDelete(confirmDeleteId)}
+            >
+              Delete Record
+            </Button>
+          </>
+        }
+      >
+        <p className="text-xs text-zinc-400">
+          This will remove build artifacts and logs from the history.
+        </p>
+      </Modal>
+    </div>
   );
 };
 

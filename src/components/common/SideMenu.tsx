@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
@@ -11,6 +11,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import Link from "next/link";
 import { useTheme } from "@mui/material/styles";
 import { usePathname, useRouter } from "next/navigation";
 import GridViewIcon from "@mui/icons-material/GridView";
@@ -22,6 +23,9 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LogoutIcon from "@mui/icons-material/Logout";
 import BuildIcon from "@mui/icons-material/Build";
 import { useAuth } from "@/auth/AuthContext";
+import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
+import { useApi, clearLocalSession } from "@/hooks/useApi";
+import type { Project } from "@/lib/api/types";
 
 const menuItems = [
   { label: "Overview", icon: <GridViewIcon />, href: "/dashboard" },
@@ -35,6 +39,40 @@ function SideMenu() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuth();
+  let projects: Project[] = [];
+  try {
+    const dashboardData = useDashboardData();
+    projects = dashboardData?.projects ?? [];
+  } catch (err) {
+    projects = [];
+  }
+  const { client } = useApi();
+  const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    let fetchedAlready = false;
+
+    const doFetch = async () => {
+      // If dashboard already provides projects, don't fetch
+      if (projects && projects.length > 0) return;
+      if (fetchedAlready) return;
+      fetchedAlready = true;
+
+      try {
+        const data = await client.projects.list();
+        if (mounted) setLocalProjects(data.projects ?? []);
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    // Run once on mount only to avoid re-fetching when `client` identity changes
+    doFetch();
+
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -44,6 +82,11 @@ function SideMenu() {
   const projectIdMatch = pathname.match(/\/projects\/([^/]+)/);
   const projectId = projectIdMatch ? projectIdMatch[1] : null;
   const isProjectPath = Boolean(projectId);
+
+  const [selectedProject, setSelectedProject] = React.useState<string | number | null>(null);
+  React.useEffect(() => {
+    setSelectedProject(projectId ?? null);
+  }, [projectId]);
 
   // Vérifier si un lien est actif
   const isActiveLink = (href: string) => {
@@ -70,17 +113,41 @@ function SideMenu() {
   const handleLogout = async () => {
     handleClose();
 
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-    } catch {
-      // Keep client-side logout behavior even if the API call fails.
-    }
+    await clearLocalSession();
 
     clearAuth();
     router.replace("/auth/login");
   };
+
+  const recentProjects = useMemo(() => {
+    const source = (projects && projects.length > 0) ? projects : localProjects;
+    if (!source || source.length === 0) return [];
+    const sorted = [...source]
+      .sort((a, b) => {
+        const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 3);
+
+    if (!projectId) {
+      return sorted;
+    }
+
+    const activeProject = source.find((project) => `${project.id}` === `${projectId}`);
+    const activeAlreadyListed = sorted.some((project) => `${project.id}` === `${projectId}`);
+
+    if (activeAlreadyListed) {
+      return sorted;
+    }
+
+    const activeEntry = activeProject ?? {
+      id: Number(projectId),
+      name: `Project ${projectId}`,
+    };
+
+    return [activeEntry, ...sorted.slice(0, 2)];
+  }, [projects, localProjects, projectId]);
 
 
   return (
@@ -152,20 +219,22 @@ function SideMenu() {
         <List>
           {menuItems.map((item) => {
             const isActive = isActiveLink(item.href);
+            const isSelected = isActive;
             return (
               <Box key={item.label}>
-                <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 2 }}>
+                <ListItem disablePadding sx={{ mb: 0.5, borderRadius: 1.5 }}>
                   <Button
+                    component={Link}
                     href={item.href}
                     startIcon={item.icon}
                     fullWidth
                     sx={{
                       justifyContent: 'flex-start',
-                      color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
-                      background: isActive ? theme.palette.action.selected : 'transparent',
-                      borderRadius: 2,
+                      color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
+                      background: isSelected ? theme.palette.action.selected : 'transparent',
+                      borderRadius: 1.5,
                       textTransform: 'none',
-                      fontWeight: isActive ? 600 : 500,
+                      fontWeight: isSelected ? 600 : 500,
                       px: 2,
                       py: 1.2,
                       '&:hover': {
@@ -178,49 +247,130 @@ function SideMenu() {
                   </Button>
                 </ListItem>
 
-                {/* Sous-menu Builds pour Projects */}
-                {item.label === "Projects" && isProjectPath && (
-                  <ListItem
-                    disablePadding
-                    sx={{
-                      mb: 0.5,
-                      borderRadius: 2,
-                      ml: 3,
-                      overflow: 'hidden',
-                      maxWidth: 'calc(100% - 24px)', // pour éviter de dépasser le menu
-                    }}
-                  >
-                    <Button
-                      href={`/projects/${projectId}/builds`}
-                      startIcon={<BuildIcon />}
-                      fullWidth
-                      sx={{
-                        justifyContent: 'flex-start',
-                        color: pathname.includes('/builds')
-                          ? theme.palette.primary.main
-                          : theme.palette.text.primary,
-                        background: pathname.includes('/builds')
-                          ? theme.palette.action.selected
-                          : 'transparent',
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        fontWeight: pathname.includes('/builds') ? 600 : 500,
-                        fontSize: '0.95rem',
-                        px: 2,
-                        py: 1,
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                        textOverflow: 'ellipsis',
-                        '&:hover': {
-                          background: theme.palette.action.hover,
-                          color: theme.palette.primary.main,
-                        },
-                      }}
-                    >
-                      Builds
-                    </Button>
-                  </ListItem>
+                {/* Builds will be shown under the selected project in the recent list. */}
+                {/* Derniers projets (5) */}
+                {item.label === "Projects" && recentProjects.length > 0 && (
+                  <Box sx={{ pl: 3, pr: 0, mt: 0.5 }}>
+                    {recentProjects.map((proj) => {
+                      const pid = proj.id;
+                      return (
+                        <Box key={pid} sx={{ width: '100%' }}>
+                          <ListItem disablePadding sx={{ mb: 0.25, borderRadius: 1.5 }}>
+                            <Button
+                              onClick={() => {
+                                if (!pid) return;
+                                setSelectedProject(pid);
+                                router.push(`/projects/${pid}`);
+                              }}
+                              fullWidth
+                              sx={{
+                                justifyContent: 'flex-start',
+                                color: selectedProject === `${pid}` || pathname === `/projects/${pid}` ? theme.palette.primary.main : theme.palette.text.primary,
+                                background: selectedProject === `${pid}` || pathname === `/projects/${pid}` ? theme.palette.action.selected : 'transparent',
+                                borderRadius: 1.5,
+                                textTransform: 'none',
+                                fontWeight: selectedProject === `${pid}` || pathname === `/projects/${pid}` ? 600 : 500,
+                                fontSize: '0.95rem',
+                                px: 2,
+                                py: 0.6,
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'ellipsis',
+                                width: 'calc(100% + 24px)',
+                                maxWidth: 'calc(100% + 24px)',
+                                '&:hover': {
+                                  background: theme.palette.action.hover,
+                                  color: theme.palette.primary.main,
+                                },
+                              }}
+                            >
+                              {proj.name || `Project ${pid}`}
+                            </Button>
+                          </ListItem>
+
+                          {selectedProject !== null && `${selectedProject}` === `${pid}` && (
+                            <ListItem
+                              disablePadding
+                              sx={{
+                                mb: 0.25,
+                                borderRadius: 1.25,
+                                ml: 3,
+                                overflow: 'hidden',
+                                '&:hover > button': {
+                                  background: theme.palette.action.hover,
+                                  color: theme.palette.primary.main,
+                                },
+                              }}
+                            >
+                              <Button
+                                onClick={() => router.push(`/projects/${pid}/configuration`)}
+                                startIcon={<SettingsIcon />}
+                                fullWidth
+                                sx={{
+                                  justifyContent: 'flex-start',
+                                  color: pathname.includes(`/projects/${pid}/configuration`) ? theme.palette.primary.main : theme.palette.text.primary,
+                                  background: pathname.includes(`/projects/${pid}/configuration`) ? theme.palette.action.selected : 'transparent',
+                                  borderRadius: 1.25,
+                                  textTransform: 'none',
+                                  fontWeight: pathname.includes(`/projects/${pid}/configuration`) ? 600 : 500,
+                                  fontSize: '0.9rem',
+                                  px: 2,
+                                  py: 0.6,
+                                  overflow: 'hidden',
+                                  whiteSpace: 'nowrap',
+                                  textOverflow: 'ellipsis',
+                                  width: 'calc(100% - 24px)',
+                                  maxWidth: 'calc(100% - 24px)',
+                                }}
+                              >
+                                Configuration
+                              </Button>
+                            </ListItem>
+                          )}
+                          {selectedProject !== null && `${selectedProject}` === `${pid}` && (
+                            <ListItem
+                              disablePadding
+                              sx={{
+                                mb: 0.25,
+                                borderRadius: 1.25,
+                                ml: 3,
+                                overflow: 'hidden',
+                                // apply hover styles to the container so the rounded background looks correct
+                                '&:hover > button': {
+                                  background: theme.palette.action.hover,
+                                  color: theme.palette.primary.main,
+                                },
+                              }}
+                            >
+                              <Button
+                                onClick={() => router.push(`/projects/${pid}/builds`)}
+                                startIcon={<BuildIcon />}
+                                fullWidth
+                                sx={{
+                                  justifyContent: 'flex-start',
+                                  color: pathname.includes(`/projects/${pid}/builds`) ? theme.palette.primary.main : theme.palette.text.primary,
+                                  background: pathname.includes(`/projects/${pid}/builds`) ? theme.palette.action.selected : 'transparent',
+                                  borderRadius: 1.25,
+                                  textTransform: 'none',
+                                  fontWeight: pathname.includes(`/projects/${pid}/builds`) ? 600 : 500,
+                                  fontSize: '0.9rem',
+                                  px: 2,
+                                  py: 0.6,
+                                  overflow: 'hidden',
+                                  whiteSpace: 'nowrap',
+                                  textOverflow: 'ellipsis',
+                                  width: 'calc(100% - 24px)',
+                                  maxWidth: 'calc(100% - 24px)',
+                                }}
+                              >
+                                Builds
+                              </Button>
+                            </ListItem>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
                 )}
               </Box>
             );

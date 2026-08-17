@@ -8,7 +8,7 @@ import { useApi } from '@/hooks/useApi';
 export default function GithubSetupContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { request } = useApi();
+    const { client } = useApi();
 
     const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
     const [message, setMessage] = useState("Initialisation...");
@@ -25,13 +25,7 @@ export default function GithubSetupContent() {
 
         const linkGithub = async () => {
             try {
-                const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/post-installation`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ installation_id: Number(installationId) }),
-                });
-                if (!res.ok) throw new Error("Erreur lors de la liaison de votre compte GitHub.");
-
+                await client.github.postInstallation(Number(installationId));
                 setStatus("success");
                 if (setupAction === "update") {
                   setMessage("Mise à jour réussie ! Votre compte GitHub est synchronisé avec Flotio.");
@@ -47,7 +41,7 @@ export default function GithubSetupContent() {
         };
 
         linkGithub();
-    }, [searchParams, router, request]);
+    }, [searchParams, router, client]);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-purple-600 to-indigo-700 text-white text-center px-4">

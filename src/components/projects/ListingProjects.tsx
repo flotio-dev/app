@@ -1,383 +1,327 @@
 "use client";
-import { useTheme } from '@mui/material/styles';
-import React, { useState, useEffect, useRef } from 'react';
-import { formatDistanceToNow, parseISO } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import { useApi } from '@/hooks/useApi';
-import MenuItem from '@mui/material/MenuItem';
-import Menu from '@mui/material/Menu';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogActions from '@mui/material/DialogActions';
 
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { useApi } from "@/hooks/useApi";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import type { Project } from "@/lib/api/types";
 
-
+import {
+  FiFolder,
+  FiGitBranch,
+  FiUser,
+  FiClock,
+  FiTrash2,
+  FiPlay,
+  FiSliders,
+  FiPlus,
+  FiMoreVertical,
+} from "react-icons/fi";
 
 interface ListingProjectsProps {
-	search: string;
+  search: string;
 }
-
-type APIProject = {
-	id: number;
-	name: string;
-	git_repo?: string | null;
-	git_username?: string | null;
-	updated_at?: string | null;
-	status?: string | null;
-};
 
 type ProjectRow = {
-	id: number;
-	name: string;
-	repoUrl: string;
-	status: string;
-	statusKey: string;
-	icon: string;
-	lastDeployment: string;
-	author: string;
+  id: number;
+  name: string;
+  repoUrl: string;
+  status: string;
+  lastDeployment: string;
+  author: string;
+  flutterVersion: string;
 };
 
-function extractProjects(payload: unknown): APIProject[] {
-	if (Array.isArray(payload)) {
-		return payload as APIProject[];
-	}
-
-	if (!payload || typeof payload !== 'object') {
-		return [];
-	}
-
-	const data = payload as {
-		projects?: APIProject[];
-		Projects?: APIProject[];
-		data?: { projects?: APIProject[]; Projects?: APIProject[] };
-		details?: { projects?: APIProject[]; Projects?: APIProject[] };
-	};
-
-	return (
-		data.projects ||
-		data.Projects ||
-		data.data?.projects ||
-		data.data?.Projects ||
-		data.details?.projects ||
-		data.details?.Projects ||
-		[]
-	);
-}
-
-function StatusBadge({ status }: { status: string }) {
-	const getStatusColor = (s: string) => {
-		switch (s?.toLowerCase()) {
-			case "success":
-				return { bg: "#d1fae5", text: "#047857", label: "Success" };
-			case "failed":
-				return { bg: "#fee2e2", text: "#dc2626", label: "Failed" };
-			case "building":
-			case "running":
-				return { bg: "#fef3c7", text: "#d97706", label: "Running" };
-			case "waiting":
-				return { bg: "#e0f2fe", text: "#0284c7", label: "Waiting" };
-			case "pending":
-				return { bg: "#e0f2fe", text: "#0284c7", label: "Pending" };
-			case "cancelled":
-				return { bg: "#e0f2fe", text: "#0284c7", label: "Cancelled" };
-			default:
-				return { bg: "#f3f4f6", text: "#374151", label: "Any build" };
-		}
-	};
-
-	const { bg, text, label } = getStatusColor(status);
-
-	return (
-		<span style={{
-			background: bg,
-			color: text,
-			padding: '0.25rem 0.75rem',
-			borderRadius: '8px',
-			fontSize: '0.75rem',
-			fontWeight: 600,
-			display: 'inline-block',
-			minWidth: '120px',
-			textAlign: 'center'
-		}}>
-			{label}
-		</span>
-	);
-}
-
-function getStatusLabelForFilter(status: string) {
-	switch (status?.toLowerCase()) {
-		case "success": return "Success";
-		case "failed": return "Failed";
-		case "building":
-		case "running": return "Running";
-		case "waiting":
-		case "pending": return "Waiting/Pending";
-		case "aucun build": return "Any build";
-		default: return status || "Any build";
-	}
-}
-
 export default function ListingProjects({ search }: ListingProjectsProps) {
-	const theme = useTheme();
-	const router = useRouter();
-	const { request } = useApi();
-	const hasLoadedProjectsRef = useRef(false);
-	const isFetchingProjectsRef = useRef(false);
-	const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-	useEffect(() => {
-		if (openMenuId === null) return;
-		const handleClick = (e: MouseEvent) => {
-			const menu = document.getElementById('project-actions-menu');
-			if (menu && !menu.contains(e.target as Node)) {
-				setOpenMenuId(null);
-			}
-		};
-		document.addEventListener('mousedown', handleClick);
-		return () => document.removeEventListener('mousedown', handleClick);
-	}, [openMenuId]);
-	const [projects, setProjects] = useState<ProjectRow[]>([]);
-	const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const router = useRouter();
+  const { client } = useApi();
+  const hasLoadedProjectsRef = useRef(false);
+  const isFetchingProjectsRef = useRef(false);
 
-	useEffect(() => {
-		if (hasLoadedProjectsRef.current || isFetchingProjectsRef.current) {
-			return;
-		}
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-		let isMounted = true;
-		isFetchingProjectsRef.current = true;
+  useEffect(() => {
+    if (hasLoadedProjectsRef.current || isFetchingProjectsRef.current) {
+      return;
+    }
 
-		const fetchProjects = async () => {
-			try {
-				const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project`, {
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-				});
-				if (!res.ok) throw new Error('Failed to fetch projects');
-				const data = await res.json();
+    let isMounted = true;
+    isFetchingProjectsRef.current = true;
 
-				// Fetch last build status for each project
-				const projectsData = extractProjects(data);
-				const projectsWithStatus = await Promise.all(projectsData.map(async (p: APIProject) => {
-					try {
-						const buildsRes = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${p.id}/builds`);
-						if (buildsRes.ok) {
-							const buildsData = await buildsRes.json();
-							// Access "builds" array exactly as specified in the response type
-							if (buildsData && Array.isArray(buildsData.builds) && buildsData.builds.length > 0) {
-								// Start by sorting builds by ID descending to get the very last one
-								const sortedBuilds = buildsData.builds.sort((a: any, b: any) => b.id - a.id);
-								return { ...p, status: sortedBuilds[0].status };
-							}
-						}
-						return { ...p, status: null };
-					} catch {
-						return { ...p, status: null };
-					}
-				}));
+    const fetchProjects = async () => {
+      try {
+        const data = await client.projects.list();
+        const projectsData = data.projects ?? [];
 
-				if (!isMounted) {
-					return;
-				}
-				setProjects(
-					projectsWithStatus.map((p: APIProject): ProjectRow => ({
-						id: p.id,
-						name: p.name,
-						repoUrl: p.git_repo || '',
-						status: p.status || 'Aucun build',
-						statusKey: '',
-						icon: p.name ? p.name[0].toUpperCase() : '?',
-						lastDeployment: p.updated_at || '',
-						author: p.git_username || '',
-					}))
-				);
-				hasLoadedProjectsRef.current = true;
-			} catch (error) {
-				console.error('Failed to fetch projects:', error);
-			} finally {
-				isFetchingProjectsRef.current = false;
-			}
-		};
-		fetchProjects();
-		return () => {
-			isMounted = false;
-			isFetchingProjectsRef.current = false;
-		};
-	}, [request]);
+        // Fetch last build status for each project
+        const projectsWithStatus = await Promise.all(
+          projectsData.map(async (p: Project) => {
+            try {
+              const buildsData = await client.builds.list(Number(p.id));
+              const builds = buildsData.builds ?? [];
+              if (builds.length > 0) {
+                const sortedBuilds = [...builds].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+                return { ...p, status: sortedBuilds[0].status ?? null };
+              }
+              return { ...p, status: null };
+            } catch {
+              return { ...p, status: null };
+            }
+          })
+        );
 
-	const [statusFilter, setStatusFilter] = useState<string>("");
-	const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
-	const openStatusMenu = Boolean(statusAnchorEl);
-	const allStatuses = Array.from(new Set(projects.map(p => p.status)));
-	const filteredProjects = projects.filter(p => {
-		const matchesSearch =
-			p.name.toLowerCase().includes(search.toLowerCase()) ||
-			p.repoUrl.toLowerCase().includes(search.toLowerCase()) ||
-			p.author.toLowerCase().includes(search.toLowerCase());
-		const matchesStatus = statusFilter ? p.status === statusFilter : true;
-		return matchesSearch && matchesStatus;
-	});
+        if (!isMounted) return;
 
-	const handleMenuOpen = (id: number) => {
-		setOpenMenuId(id);
-	};
+        setProjects(
+          projectsWithStatus.map((p): ProjectRow => ({
+            id: p.id ?? 0,
+            name: p.name ?? "",
+            repoUrl: p.config?.git_repo || "",
+            status: p.status || "No builds",
+            lastDeployment: p.updated_at || "",
+            author: p.config?.git_username || "author",
+            flutterVersion: p.config?.flutter_version || "3.19.0",
+          }))
+        );
+        hasLoadedProjectsRef.current = true;
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+      } finally {
+        isFetchingProjectsRef.current = false;
+        if (isMounted) setIsLoading(false);
+      }
+    };
 
-	const handleDelete = async (id: number) => {
-		try {
-			const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${id}`, {
-				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-			});
-			if (!res.ok) throw new Error('Failed to delete project');
-			setProjects(projects.filter(p => p.id !== id));
-		} catch {
-			// Optionally handle error (e.g., show a toast)
-		} finally {
-			setOpenMenuId(null);
-			setConfirmDeleteId(null);
-		}
-	};
+    fetchProjects();
+    return () => {
+      isMounted = false;
+      isFetchingProjectsRef.current = false;
+    };
+  }, [client]);
 
-	return (
-		<div className="w-full max-w-5xl mx-auto mt-6">
-			<div className="flex flex-wrap gap-4 mb-4 items-center">
-				<div style={{ color: theme.palette.text.secondary }} className="text-sm">Showing {filteredProjects.length} projects</div>
-			</div>
-			<div style={{ background: theme.palette.background.paper }} className="overflow-x-auto rounded-lg">
-				<table className="min-w-full text-left text-sm" style={{ color: theme.palette.text.primary }}>
-					<thead>
-						<tr style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-							<th className="px-6 py-4 font-semibold tracking-wider">PROJECT</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">DEPOT GIT</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">LAST UPDATE</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">
-								<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-									<span>STATUS</span>
-									<Button
-										variant="text"
-										size="small"
-										sx={{ minWidth: 0, p: 0, fontSize: '0.85em', textTransform: 'none' }}
-										onClick={e => setStatusAnchorEl(e.currentTarget)}
-									>
-										{statusFilter ? statusFilter : 'All'}
-									</Button>
-									<Menu
-										anchorEl={statusAnchorEl}
-										open={openStatusMenu}
-										onClose={() => setStatusAnchorEl(null)}
-									>
-										<MenuItem
-											selected={statusFilter === ""}
-											onClick={() => { setStatusFilter(""); setStatusAnchorEl(null); }}
-										>
-											All Statuses
-										</MenuItem>
-										{allStatuses.map(status => (
-											<MenuItem
-												key={status}
-												selected={statusFilter === status}
-												onClick={() => { setStatusFilter(status); setStatusAnchorEl(null); }}
-											>
-												{getStatusLabelForFilter(status)}
-											</MenuItem>
-										))}
-									</Menu>
-								</div>
-							</th>
-							<th className="px-6 py-4 font-semibold tracking-wider">ACTIONS</th>
-						</tr>
-					</thead>
-					<tbody>
-						{filteredProjects.map((project) => (
-							<tr
-								key={project.id}
-								style={{ borderBottom: `1px solid ${theme.palette.divider}`, cursor: 'pointer' }}
-								className="hover:bg-opacity-70 transition"
-								onMouseOver={e => (e.currentTarget.style.background = theme.palette.action.hover)}
-								onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-								onClick={e => {
-									// Ne pas déclencher la navigation si clic sur le bouton actions
-									if ((e.target as HTMLElement).closest('button')) return;
-									router.push(`/projects/${project.id}`);
-								}}
-							>
-								<td className="flex items-center gap-3 px-6 py-4">
-									<span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontWeight: 700, fontSize: 18, background: theme.palette.primary.main, color: theme.palette.getContrastText(theme.palette.primary.main) }}>{project.icon}</span>
-									<div>
-										<div className="font-semibold text-base leading-tight">{project.name}</div>
-										<div className="text-xs" style={{ color: theme.palette.text.secondary }}>{project.author}</div>
-									</div>
-								</td>
-								<td className="px-6 py-4">
-									<span className="font-medium">{project.repoUrl}</span>
-								</td>
-								<td className="px-6 py-4">
-									<div className="font-medium">
-										{project.lastDeployment
-											? (() => {
-												try {
-													// Try to parse as ISO, fallback to string if invalid
-													const date = parseISO(project.lastDeployment);
-													if (!isNaN(date.getTime())) {
-														return formatDistanceToNow(date, { addSuffix: true });
-													}
-												} catch {
-													// ignore
-												}
-												return project.lastDeployment;
-											})()
-											: 'N/A'}
-									</div>
-								</td>
-								<td className="px-6 py-4">
-									<StatusBadge status={project.status} />
-								</td>
-								<td className="px-6 py-4" style={{ position: 'relative' }}>
-									<button className="p-2 rounded" style={{ background: 'none' }} onClick={e => { e.stopPropagation(); handleMenuOpen(project.id); }}>
-										<span className="sr-only">Actions</span>
-										<svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5" fill="#888" /><circle cx="10" cy="10" r="1.5" fill="#888" /><circle cx="10" cy="16" r="1.5" fill="#888" /></svg>
-									</button>
-									{openMenuId === project.id && (
-										<div
-											id="project-actions-menu"
-											style={{ position: 'absolute', right: 0, top: '2.5rem', zIndex: 10, background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', minWidth: 120 }}
-										>
-											<button
-												onClick={() => setConfirmDeleteId(project.id)}
-												style={{ color: theme.palette.error.main, padding: '0.5rem 1rem', width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
-												onMouseDown={e => e.preventDefault()}
-											>
-												Supprimer
-											</button>
-										</div>
-									)}
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-			<Dialog
-				open={confirmDeleteId !== null}
-				onClose={() => setConfirmDeleteId(null)}
-			>
-				<DialogTitle>Confirm Deletion</DialogTitle>
-				<DialogContent>
-					<DialogContentText>
-						Are you sure you want to permanently delete this project? This action cannot be undone.
-					</DialogContentText>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={() => setConfirmDeleteId(null)} color="primary">
-						Cancel
-					</Button>
-					<Button onClick={() => confirmDeleteId !== null && handleDelete(confirmDeleteId)} color="error" variant="contained">
-						Delete
-					</Button>
-				</DialogActions>
-			</Dialog>
-		</div>
-	);
+  const handleDelete = async (id: number) => {
+    setIsDeleting(true);
+    try {
+      await client.projects.remove(id);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error("Failed to delete project", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      const q = search.toLowerCase();
+      const matchesSearch =
+        p.name.toLowerCase().includes(q) ||
+        p.repoUrl.toLowerCase().includes(q) ||
+        p.author.toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+      if (statusFilter === "ALL") return true;
+      if (statusFilter === "SUCCESS") return p.status.toLowerCase() === "success";
+      if (statusFilter === "FAILED") return p.status.toLowerCase() === "failed";
+      if (statusFilter === "RUNNING")
+        return ["building", "running", "pending"].includes(p.status.toLowerCase());
+      return true;
+    });
+  }, [projects, search, statusFilter]);
+
+  const getStatusBadge = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === "success") return <Badge variant="success" dot>Success</Badge>;
+    if (s === "failed") return <Badge variant="failed" dot>Failed</Badge>;
+    if (["building", "running"].includes(s))
+      return <Badge variant="running" dot>Building</Badge>;
+    if (["waiting", "pending", "queued"].includes(s))
+      return <Badge variant="queued" dot>Queued</Badge>;
+    return <Badge variant="neutral">No builds</Badge>;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Filter and Count Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-400">
+            Showing <strong className="text-zinc-200">{filteredProjects.length}</strong>{" "}
+            {filteredProjects.length === 1 ? "project" : "projects"}
+          </span>
+        </div>
+
+        {/* Status Filter Pills */}
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 self-start sm:self-auto">
+          {[
+            { key: "ALL", label: "All" },
+            { key: "SUCCESS", label: "Passing" },
+            { key: "RUNNING", label: "Building" },
+            { key: "FAILED", label: "Failed" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                statusFilter === tab.key
+                  ? "bg-zinc-800 text-white font-semibold shadow-xs"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Projects Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((n) => (
+            <Card key={n} className="h-44 p-5 animate-pulse bg-zinc-900/30">
+              <div className="h-4 w-32 bg-zinc-800 rounded mb-3" />
+              <div className="h-3 w-48 bg-zinc-800/60 rounded mb-2" />
+              <div className="h-3 w-24 bg-zinc-800/40 rounded mt-6" />
+            </Card>
+          ))}
+        </div>
+      ) : filteredProjects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 text-center">
+          <FiFolder className="h-10 w-10 text-zinc-600 mb-3" />
+          <h3 className="text-sm font-semibold text-zinc-200">No projects found</h3>
+          <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+            {search
+              ? "No projects match your current search criteria."
+              : "Get started by importing a GitHub repository or configuring a new mobile pipeline."}
+          </p>
+          <Link href="/new-project" className="mt-4">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<FiPlus className="h-3.5 w-3.5" />}
+            >
+              Create New Project
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProjects.map((project) => {
+            const timeAgo = project.lastDeployment
+              ? formatDistanceToNow(parseISO(project.lastDeployment), { addSuffix: true })
+              : "recently";
+
+            return (
+              <Card
+                key={project.id}
+                hoverable
+                className="group flex flex-col justify-between p-5 transition-all duration-200"
+              >
+                <div>
+                  {/* Top row: Title + Status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="min-w-0 group-hover:text-cyan-300 transition-colors"
+                    >
+                      <h3 className="text-base font-semibold text-zinc-100 truncate">
+                        {project.name}
+                      </h3>
+                    </Link>
+                    {getStatusBadge(project.status)}
+                  </div>
+
+                  {/* Git Repo */}
+                  <div className="mt-2.5 space-y-1 text-xs text-zinc-400">
+                    <div className="flex items-center gap-1.5 truncate font-mono text-[11px] text-zinc-400">
+                      <FiGitBranch className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                      <span className="truncate">
+                        {project.repoUrl || "No repository linked"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Meta & Actions */}
+                <div className="mt-6 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500">
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <FiClock className="h-3 w-3" />
+                    <span>{timeAgo}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Link
+                      href={`/projects/${project.id}/builds`}
+                      title="View Builds"
+                      className="p-1.5 rounded-md hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+                    >
+                      <FiPlay className="h-3.5 w-3.5 text-amber-400" />
+                    </Link>
+                    <Link
+                      href={`/projects/${project.id}/configuration`}
+                      title="Configuration"
+                      className="p-1.5 rounded-md hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+                    >
+                      <FiSliders className="h-3.5 w-3.5 text-blue-400" />
+                    </Link>
+                    <button
+                      type="button"
+                      title="Delete Project"
+                      onClick={() => setConfirmDeleteId(project.id)}
+                      className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-400 transition-colors cursor-pointer text-zinc-500"
+                    >
+                      <FiTrash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Delete Project"
+        description="Are you sure you want to permanently delete this project? All builds, configuration, and logs associated with this project will be removed."
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDeleteId(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDeleting}
+              onClick={() => confirmDeleteId !== null && handleDelete(confirmDeleteId)}
+            >
+              Delete Project
+            </Button>
+          </>
+        }
+      >
+        <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/20 text-xs text-rose-300">
+          Warning: This action is destructive and cannot be undone.
+        </div>
+      </Modal>
+    </div>
+  );
 }

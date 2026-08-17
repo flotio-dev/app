@@ -6,43 +6,19 @@ import { useRouter } from 'next/navigation';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { AuthForm } from '@/components/auth';
 import { useAuth } from '@/auth/AuthContext';
-
-interface AuthResponse {
-  access_token?: string;
-  refresh_token?: string;
-}
-
-interface CurrentUser {
-  id: string | number;
-  email: string;
-  username: string;
-}
+import { useApi, persistSession, userFromResponse } from '@/hooks/useApi';
 
 export default function RegisterPage() {
   const theme = useTheme();
   const router = useRouter();
   const { setUserAndToken } = useAuth();
+  const { client } = useApi();
   const { formData, loading, handleChange, handleSubmit, error } = useAuthForm('register');
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
   const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL?.replace(/\/$/, '') || '/';
 
   const register = async (data: { email: string; username: string; password: string }) => {
-    if (!apiBaseUrl) {
-      throw new Error('NEXT_PUBLIC_API_URL is not configured');
-    }
+    const authData = await client.auth.register(data.email, data.password, data.username);
 
-    const res = await fetch(`${apiBaseUrl}/auth/register`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      throw new Error('Register failed');
-    }
-
-    const authData = (await res.json()) as AuthResponse;
     if (!authData.access_token) {
       throw new Error('Missing access token');
     }
@@ -50,34 +26,11 @@ export default function RegisterPage() {
       throw new Error('Missing refresh token');
     }
 
-    const sessionRes = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: authData.refresh_token }),
-    });
-    if (!sessionRes.ok) {
-      throw new Error('Unable to persist session');
-    }
+    await persistSession(authData.refresh_token);
 
-    const meRes = await fetch(`${apiBaseUrl}/auth/@me`, {
-      credentials: 'include',
-      headers: { Authorization: `Bearer ${authData.access_token}` },
-    });
+    const me = await client.auth.getMe();
 
-    if (!meRes.ok) {
-      throw new Error('Unable to load profile');
-    }
-
-    const me = (await meRes.json()) as CurrentUser;
-
-    setUserAndToken(
-      {
-        id: String(me.id),
-        email: me.email,
-        username: me.username,
-      },
-      authData.access_token
-    );
+    setUserAndToken(userFromResponse(me), authData.access_token);
 
     router.push('/dashboard');
   };

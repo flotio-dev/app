@@ -1,105 +1,103 @@
+"use client";
 
 import React, { useEffect, useState } from "react";
-import { useApi } from '@/hooks/useApi';
-import GitHubIcon from "@mui/icons-material/GitHub";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
-import { useTheme } from "@mui/material/styles";
+import { useApi } from "@/hooks/useApi";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { FiGithub, FiCheckCircle, FiXCircle, FiExternalLink } from "react-icons/fi";
 
 const GithubConnect: React.FC = () => {
-  const theme = useTheme();
-  const { request } = useApi();
+  const { client } = useApi();
   const [hasInstallation, setHasInstallation] = useState<boolean | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const GITHUB_INSTALL_URL = `https://github.com/apps/${process.env.NEXT_PUBLIC_APP_ID}/installations/new`;
 
   useEffect(() => {
     const checkInstallation = async () => {
       try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/installations`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!res.ok) throw new Error('Failed to check installation');
-        const data = await res.json();
-        console.log(data);
-        setHasInstallation(data.details && data.details.installation_id ? true : false);
+        const data = await client.github.checkInstallation();
+        setHasInstallation(Boolean(data.installation_id));
       } catch {
         setHasInstallation(false);
       }
     };
     checkInstallation();
-  }, [request]);
+  }, [client]);
 
   const handleConnect = () => {
     window.location.href = GITHUB_INSTALL_URL;
   };
 
   const handleDisconnect = async () => {
+    setIsDisconnecting(true);
     try {
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/github/disconnect`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Erreur lors de la déconnexion de GitHub');
+      await client.github.disconnect();
       setHasInstallation(false);
     } catch (err) {
-      alert('Erreur lors de la déconnexion de GitHub');
+      console.error("Error disconnecting GitHub:", err);
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
   return (
-    <Paper
-      elevation={2}
-      sx={{
-        borderRadius: 3,
-        p: 4,
-        mb: 4,
-        boxShadow: 2,
-        border: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.background.paper,
-        transition: 'background 0.2s, border 0.2s',
-      }}
-    >
-      <Box display="flex" alignItems="center" gap={2}>
-        <Box flex={1}>
-          <Typography variant="h6" fontWeight={600} mb={1} color={theme.palette.text.primary}>
-            GitHub Connection
-          </Typography>
-          <Typography variant="body2" color={theme.palette.text.secondary}>
-            Connect your GitHub account to enable continuous integration and advanced features.
-          </Typography>
-        </Box>
-        {hasInstallation === null ? (
-          <Button disabled sx={{ ml: 2 }}>Loading...</Button>
-        ) : hasInstallation ? (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDisconnect}
-            startIcon={<GitHubIcon />}
-            sx={{ px: 3, py: 1.5, fontWeight: 500, fontSize: '0.95rem', borderRadius: 1, boxShadow: 'none', textTransform: 'none', ml: 2 }}
+    <Card className="p-0 overflow-hidden mb-6 border-zinc-800 bg-zinc-950">
+      <CardHeader className="flex-row items-center justify-between pb-3">
+        <div className="flex items-center gap-2">
+          <FiGithub className="h-4 w-4 text-cyan-400" />
+          <CardTitle>GitHub Integration</CardTitle>
+        </div>
+
+        {hasInstallation !== null && (
+          <Badge
+            variant={hasInstallation ? "success" : "neutral"}
+            size="sm"
+            dot={hasInstallation}
           >
-            Connected (Disconnect)
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleConnect}
-            startIcon={<GitHubIcon />}
-            sx={{ px: 3, py: 1.5, fontWeight: 500, fontSize: '0.95rem', borderRadius: 1, boxShadow: 'none', textTransform: 'none', ml: 2 }}
-          >
-            Connect with GitHub
-          </Button>
+            {hasInstallation ? "Connected" : "Disconnected"}
+          </Badge>
         )}
-      </Box>
-    </Paper>
+      </CardHeader>
+
+      <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h4 className="text-xs font-semibold text-zinc-100">
+            {hasInstallation ? "GitHub App Active" : "Connect GitHub Account"}
+          </h4>
+          <p className="text-xs text-zinc-400 mt-1 max-w-md">
+            Authorize Flotio to fetch private repositories, webhook events, and trigger automated builds on push.
+          </p>
+        </div>
+
+        <div>
+          {hasInstallation === null ? (
+            <Button variant="secondary" size="sm" isLoading disabled>
+              Checking...
+            </Button>
+          ) : hasInstallation ? (
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDisconnecting}
+              onClick={handleDisconnect}
+            >
+              Disconnect Account
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<FiGithub className="h-3.5 w-3.5" />}
+              rightIcon={<FiExternalLink className="h-3 w-3" />}
+              onClick={handleConnect}
+            >
+              Connect GitHub
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

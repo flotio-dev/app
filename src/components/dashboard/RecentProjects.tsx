@@ -1,23 +1,14 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
-import { useTheme } from "@mui/material/styles";
-import NextLink from "next/link";
-
+import Link from "next/link";
 import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
-import { formatDistanceToNow, parseISO } from 'date-fns';
-
-function getStatus(project: any) {
-  // You can adjust this logic based on your API's status field
-  return project.status || 'Online';
-}
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { FiFolder, FiArrowUpRight, FiGitBranch, FiUser } from "react-icons/fi";
 
 function RecentProjects() {
-  const theme = useTheme();
   const { projects } = useDashboardData();
 
   const recentProjects = useMemo(() => {
@@ -31,86 +22,80 @@ function RecentProjects() {
   }, [projects]);
 
   return (
-    <Paper
-      elevation={1}
-      sx={{
-        borderRadius: 2,
-        p: 3,
-        boxShadow: 1,
-        border: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.background.paper,
-        transition: 'background 0.2s, border 0.2s',
-      }}
-    >
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-        <Typography fontWeight={600} color={theme.palette.text.primary}>
-          Recent Projects
-        </Typography>
-        <Link href="/projects" underline="hover" color={theme.palette.primary.main} fontSize={13} fontWeight={500}>
+    <Card className="p-0 overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between pb-3">
+        <div className="flex items-center gap-2">
+          <FiFolder className="h-4 w-4 text-cyan-400" />
+          <CardTitle>Recent Projects</CardTitle>
+        </div>
+        <Link
+          href="/projects"
+          className="text-xs font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+        >
           View all
+          <FiArrowUpRight className="h-3 w-3" />
         </Link>
-      </Box>
-      <Box display="flex" gap={2} overflow="auto" pb={1}>
-        {recentProjects.map((project) => {
-          const projectId = project.id ?? project.project_id;
-          return (
+      </CardHeader>
+
+      <CardContent className="p-4 pt-3">
+        {recentProjects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-xs text-zinc-500">No projects found.</p>
             <Link
-              key={projectId}
-              component={NextLink}
-              href={projectId ? `/projects/${projectId}` : "/projects"}
-              underline="none"
-              color="inherit"
-              sx={{ display: "block" }}
+              href="/new-project"
+              className="mt-2 text-xs font-medium text-cyan-400 hover:underline"
             >
-              <Paper
-                elevation={0}
-                sx={{
-                  minWidth: 220,
-                  maxWidth: 320,
-                  p: 2,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.divider}`,
-                  background: theme.palette.background.default,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.5,
-                  cursor: "pointer",
-                  transition: "box-shadow 0.2s, transform 0.2s",
-                  '&:hover': {
-                    boxShadow: 2,
-                    transform: "translateY(-2px)",
-                  },
-                }}
-              >
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Box
-                    width={8}
-                    height={8}
-                    borderRadius={8}
-                    sx={{
-                      background: getStatus(project) === "Online" ? theme.palette.success.main : theme.palette.grey[500],
-                    }}
-                  />
-                  <Typography fontWeight={500} color={theme.palette.text.primary} fontSize={15}>
-                    {project.name}
-                  </Typography>
-                  <Box flex={1} />
-                  <Typography variant="caption" color={theme.palette.text.disabled}>
-                    {project.updated_at ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true }) : ''}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color={theme.palette.text.secondary}>
-                  {project.git_repo}
-                </Typography>
-                <Typography variant="caption" color={theme.palette.text.disabled}>
-                  By {project.git_username}
-                </Typography>
-              </Paper>
+              Create your first project →
             </Link>
-          );
-        })}
-      </Box>
-    </Paper>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {recentProjects.map((project) => {
+              const projectId = project.id;
+              const timeAgo = project.updated_at
+                ? formatDistanceToNow(parseISO(project.updated_at), { addSuffix: true })
+                : "recently";
+
+              return (
+                <Link
+                  key={projectId}
+                  href={projectId ? `/projects/${projectId}` : "/projects"}
+                  className="group flex flex-col justify-between p-4 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/80 hover:border-zinc-700 transition-all duration-150"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                      <h4 className="text-sm font-semibold text-zinc-200 group-hover:text-cyan-300 transition-colors truncate">
+                        {project.name}
+                      </h4>
+                    </div>
+                    <Badge variant="neutral" size="sm">
+                      {project.config?.flutter_version || "Flutter"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 space-y-1.5 text-xs text-zinc-400">
+                    {project.config?.git_repo && (
+                      <div className="flex items-center gap-1.5 truncate text-[11px]">
+                        <FiGitBranch className="h-3 w-3 text-zinc-500 shrink-0" />
+                        <span className="truncate">{project.config.git_repo}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 border-t border-zinc-800/40">
+                      <span className="flex items-center gap-1">
+                        <FiUser className="h-3 w-3" />
+                        {project.config?.git_username || "author"}
+                      </span>
+                      <span>{timeAgo}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

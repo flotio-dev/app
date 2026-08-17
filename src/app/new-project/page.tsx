@@ -1,24 +1,24 @@
 "use client";
-import SideMenu from '@/components/common/SideMenu';
-import NewProjectHeader from '@/components/newProject/NewProjectHeader';
-import NewProjectForm from '@/components/newProject/NewProjectForm';
-import { useTheme } from '@mui/material/styles';
+
+import React from "react";
+import { AppShell } from "@/components/layout/AppShell";
+import NewProjectForm from "@/components/newProject/NewProjectForm";
 
 export default function NewProjectPage() {
-  const theme = useTheme();
   return (
-    <div className="min-h-screen flex" style={{ background: theme.palette.background.default }}>
-      <div className="fixed left-0 top-0 h-screen w-64 z-30">
-        <SideMenu />
-      </div>
-      <main className="flex-1 flex flex-col min-h-screen" style={{ paddingLeft: 256 }}>
-        <header className="h-16 flex items-center px-6" style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <NewProjectHeader />
-        </header>
-        <div className="flex-1 flex flex-col items-center justify-center py-10 px-8" style={{ background: theme.palette.background.default }}>
-          <NewProjectForm />
+    <AppShell>
+      <div className="space-y-6">
+        <div className="text-center max-w-lg mx-auto pt-2 pb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+            Create a New Project
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Connect a mobile application repository to automatically build, test, and release your Flutter binaries.
+          </p>
         </div>
-      </main>
-    </div>
+
+        <NewProjectForm />
+      </div>
+    </AppShell>
   );
 }

@@ -10,6 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SearchIcon from "@mui/icons-material/Search";
+import BoutonCLI from "../common/BoutonCLI";
 
 
 import TextField from "@mui/material/TextField";
@@ -45,6 +46,7 @@ const ProjectsHeader: React.FC<ProjectsHeaderProps> = ({ search, onSearchChange 
 						),
 					}}
 				/>
+				<BoutonCLI />
 				<Button
 					color="inherit"
 					sx={{ minWidth: 40, p: 1, borderRadius: 1 }}

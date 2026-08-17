@@ -6,18 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { useApi } from "@/hooks/useApi";
-
-interface APIBuild {
-  apk_url: string;
-  container_id: string;
-  created_at: string;
-  duration: number;
-  id: number;
-  platform: string;
-  project_id: number;
-  status: string;
-  updated_at: string;
-}
+import type { BuildDTO } from "@/lib/api/types";
 
 interface BuildsOverviewProps {
   projectId?: string;
@@ -25,7 +14,7 @@ interface BuildsOverviewProps {
 
 const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
   const theme = useTheme();
-  const { request } = useApi();
+  const { client } = useApi();
   const [totalBuilds, setTotalBuilds] = useState(0);
   const [successBuilds, setSuccessBuilds] = useState(0);
   const [failedBuilds, setFailedBuilds] = useState(0);
@@ -36,42 +25,36 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
     if (projectId) {
       const fetchBuildsAndLogs = async () => {
         try {
-          const response = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/builds`);
-          if (response.ok) {
-            const data = await response.json();
-            const builds: APIBuild[] = (data.builds || []).sort((a: APIBuild, b: APIBuild) => 
-               new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
+          const data = await client.builds.list(Number(projectId));
+          const builds: BuildDTO[] = (data.builds ?? []).sort((a, b) =>
+            new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()
+          );
 
-            const total = builds.length;
-            const success = builds.filter((build) => build.status.toLowerCase() === "success").length;
-            const failed = builds.filter((build) => build.status.toLowerCase() === "failed").length;
-            const rate = total > 0 ? Math.round((success / total) * 100) : 0;
+          const total = builds.length;
+          const success = builds.filter((build) => build.status?.toLowerCase() === "success").length;
+          const failed = builds.filter((build) => build.status?.toLowerCase() === "failed").length;
+          const rate = total > 0 ? Math.round((success / total) * 100) : 0;
 
-            setTotalBuilds(total);
-            setSuccessBuilds(success);
-            setFailedBuilds(failed);
-            setSuccessRate(rate);
+          setTotalBuilds(total);
+          setSuccessBuilds(success);
+          setFailedBuilds(failed);
+          setSuccessRate(rate);
 
-            // Fetch last build logs if available
-            if (builds.length > 0) {
-              const lastBuild = builds[0];
-              try {
-                const logsResponse = await request(`${process.env.NEXT_PUBLIC_API_URL}/project/${projectId}/build/${lastBuild.id}/logs`);
-                if (logsResponse.ok) {
-                  const logsData = await logsResponse.json();
-                  const logs = logsData.logs || [];
-                  const prefix = `Build #${lastBuild.id} (${lastBuild.status.toUpperCase()}): `;
-                  if (logs.length > 0) {
-                    setLastBuildLog(`${prefix}${logs[logs.length - 1]}`);
-                  } else {
-                    setLastBuildLog(`${prefix}No logs available.`);
-                  }
-                }
-              } catch (logError) {
-                console.error("Failed to fetch last build logs", logError);
-                setLastBuildLog("Failed to load last build logs.");
+          // Fetch last build logs if available
+          if (builds.length > 0) {
+            const lastBuild = builds[0];
+            try {
+              const logsData = await client.builds.logs(Number(projectId), Number(lastBuild.id));
+              const logs = logsData.logs ?? [];
+              const prefix = `Build #${lastBuild.id} (${(lastBuild.status ?? "").toUpperCase()}): `;
+              if (logs.length > 0) {
+                setLastBuildLog(`${prefix}${logs[logs.length - 1]}`);
+              } else {
+                setLastBuildLog(`${prefix}No logs available.`);
               }
+            } catch (logError) {
+              console.error("Failed to fetch last build logs", logError);
+              setLastBuildLog("Failed to load last build logs.");
             }
           }
         } catch (error) {
@@ -81,7 +64,7 @@ const BuildsOverview: React.FC<BuildsOverviewProps> = ({ projectId }) => {
 
       fetchBuildsAndLogs();
     }
-  }, [projectId, request]);
+  }, [projectId, client]);
 
   return (
     <Paper

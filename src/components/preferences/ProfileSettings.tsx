@@ -1,27 +1,23 @@
 "use client";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Avatar from "@mui/material/Avatar";
-import { useTheme } from "@mui/material/styles";
-import { useState, useEffect } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { FiUser, FiMail, FiEdit2, FiCheck, FiX } from "react-icons/fi";
 
-function ProfileSettings() {
-  const theme = useTheme();
-  const { request } = useApi();
+export default function ProfileSettings() {
+  const { client } = useApi();
   const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState({
     name: user?.username || "",
     email: user?.email || "",
-    github_id: "",
-    github_username: "",
   });
 
-  // Keep profile in sync with AuthContext if it loads late
   useEffect(() => {
     if (user) {
       setProfile((prev) => ({
@@ -35,133 +31,115 @@ function ProfileSettings() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`);
-        if (res.ok) {
-          const data = await res.json();
-          setProfile((prev) => ({
-            ...prev,
-            // Prioritize API data, but fallback to prev/user context if API missing fields
-            name: data.username || prev.name || "",
-            email: data.email || prev.email || "",
-            github_id: data.github_id || "",
-            github_username: data.github_username || "",
-          }));
-        }
+        // UserResponse = {id, username, email, created} — strictly no github fields (U-1).
+        const data = await client.auth.getMe();
+        setProfile((prev) => ({
+          ...prev,
+          name: data.username || prev.name || "",
+          email: data.email || prev.email || "",
+        }));
       } catch (err) {
         console.error("Failed to fetch profile:", err);
       }
     };
     fetchProfile();
-  }, []);
+  }, [client]);
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
-      const res = await request(`${process.env.NEXT_PUBLIC_API_URL}/auth/@me`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await client.auth.updateMe({
+        username: profile.name,
+        email: profile.email,
+      });
+      setIsEditing(false);
+      if (user) {
+        updateUser({
+          ...user,
           username: profile.name,
           email: profile.email,
-          github_id: profile.github_id,
-          github_username: profile.github_username,
-        }),
-      });
-      if (res.ok) {
-        setIsEditing(false);
-        if (user) {
-          updateUser({
-            ...user,
-            username: profile.name,
-            email: profile.email,
-          });
-        }
+        });
       }
     } catch (err) {
       console.error("Failed to save profile:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const initials = profile.name
+    ? profile.name.slice(0, 2).toUpperCase()
+    : profile.email
+    ? profile.email.slice(0, 2).toUpperCase()
+    : "FL";
+
   return (
-    <Box
-      borderRadius={2}
-      p={4}
-      mb={4}
-      boxShadow={1}
-      border={`1px solid ${theme.palette.divider}`}
-      bgcolor={theme.palette.background.paper}
-    >
-      <Typography variant="h6" fontWeight={600} mb={0.5} color={theme.palette.text.primary}>
-        Public Profile
-      </Typography>
-      <Typography variant="body2" mb={3} color={theme.palette.text.secondary}>
-        Manage how you appear to other team members.
-      </Typography>
-      <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={4} alignItems="flex-start">
-        <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
-          <Avatar
-            sx={{ width: 80, height: 80, border: `2px solid ${theme.palette.primary.main}`, fontWeight: 700, fontSize: 40, bgcolor: theme.palette.primary.main, color: theme.palette.getContrastText(theme.palette.primary.main) }}
-          >
-            {profile.name ? profile.name.charAt(0).toUpperCase() : "?"}
-          </Avatar>
-        </Box>
-        <Box flex={1} display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
-          <TextField
-            label="Name"
-            value={profile.name}
-            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-            fullWidth
-            size="small"
-            disabled={!isEditing}
-            sx={{
-              bgcolor: theme.palette.background.default,
-              borderRadius: 1,
-            }}
-            InputLabelProps={{ style: { color: theme.palette.text.secondary, fontSize: 12 }, shrink: true }}
-            InputProps={{ style: { color: theme.palette.text.primary, fontSize: 14 } }}
-          />
-          <TextField
-            label="Email Address"
-            value={profile.email}
-            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            fullWidth
-            size="small"
-            disabled={!isEditing}
-            sx={{
-              bgcolor: theme.palette.background.default,
-              borderRadius: 1,
-            }}
-            InputLabelProps={{ style: { color: theme.palette.text.secondary, fontSize: 12 }, shrink: true }}
-            InputProps={{ style: { color: theme.palette.text.primary, fontSize: 14 } }}
-          />
-          <Box gridColumn="1 / span 2" display="flex" justifyContent="flex-end" mt={1}>
+    <Card className="p-0 overflow-hidden mb-6 border-zinc-800 bg-zinc-950">
+      <CardHeader className="flex-row items-center justify-between pb-3">
+        <div className="flex items-center gap-2">
+          <FiUser className="h-4 w-4 text-cyan-400" />
+          <CardTitle>Public Profile</CardTitle>
+        </div>
+
+        {isEditing ? (
+          <div className="flex items-center gap-2">
             <Button
-              onClick={() => {
-                if (isEditing) {
-                  handleSave();
-                } else {
-                  setIsEditing(true);
-                }
-              }}
-              variant="contained"
-              sx={{
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.getContrastText(theme.palette.primary.main),
-                px: 3,
-                py: 1,
-                borderRadius: 1, // Keep original radius
-                fontWeight: 500, // Keep original font weight
-                fontSize: 14,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: theme.palette.primary.dark },
-              }}
+              variant="outline"
+              size="sm"
+              leftIcon={<FiX className="h-3 w-3" />}
+              onClick={() => setIsEditing(false)}
             >
-              {isEditing ? "Save Changes" : "Modify"}
+              Cancel
             </Button>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={isSaving}
+              leftIcon={<FiCheck className="h-3 w-3" />}
+              onClick={handleSave}
+            >
+              Save Changes
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<FiEdit2 className="h-3 w-3" />}
+            onClick={() => setIsEditing(true)}
+          >
+            Edit Profile
+          </Button>
+        )}
+      </CardHeader>
+
+      <CardContent className="p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-700 border-2 border-zinc-700 flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-lg">
+            {initials}
+          </div>
+
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <Input
+              label="Username"
+              value={profile.name}
+              disabled={!isEditing}
+              leftElement={<FiUser className="h-3.5 w-3.5" />}
+              onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
+              className="bg-zinc-900 border-zinc-800"
+            />
+
+            <Input
+              label="Email Address"
+              value={profile.email}
+              disabled={!isEditing}
+              leftElement={<FiMail className="h-3.5 w-3.5" />}
+              onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))}
+              className="bg-zinc-900 border-zinc-800"
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
-
-export default ProfileSettings;

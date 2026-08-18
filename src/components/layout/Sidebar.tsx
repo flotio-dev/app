@@ -104,18 +104,18 @@ export function Sidebar() {
     : "FL";
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 border-r border-zinc-800/80 bg-zinc-950 flex flex-col justify-between z-30 select-none">
+    <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border-subtle bg-surface flex flex-col justify-between z-30 select-none transition-colors duration-200">
       {/* Top section */}
       <div className="flex flex-col flex-1 min-h-0">
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-zinc-800/60">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-border-subtle">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-black font-bold text-sm shadow-md group-hover:opacity-90 transition-opacity">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:opacity-90 transition-opacity">
               F
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-bold tracking-tight text-zinc-100 text-base">Flotio</span>
-              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+              <span className="font-bold tracking-tight text-text-primary text-base">Flotio</span>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-elevated border border-border-subtle text-text-muted">
                 CI/CD
               </span>
             </div>
@@ -132,11 +132,11 @@ export function Sidebar() {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? "bg-zinc-800/90 text-white font-semibold shadow-xs"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                    ? "bg-surface-elevated text-text-primary font-semibold shadow-xs border border-border-subtle"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
                 }`}
               >
-                <span className={active ? "text-cyan-400" : "text-zinc-400"}>
+                <span className={active ? "text-accent-primary" : "text-text-muted"}>
                   {item.icon}
                 </span>
                 {item.label}
@@ -153,13 +153,13 @@ export function Sidebar() {
               if (activeProjectId) setCliProjectId(activeProjectId);
               openCli();
             }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 bg-zinc-900/60 border border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900 transition-all cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-text-secondary bg-surface-elevated border border-border-subtle hover:text-text-primary hover:border-border-default hover:bg-surface-hover transition-all cursor-pointer shadow-xs"
           >
             <div className="flex items-center gap-2">
-              <FiTerminal className="h-3.5 w-3.5 text-cyan-400" />
+              <FiTerminal className="h-3.5 w-3.5 text-accent-cyan" />
               <span>Flotio CLI</span>
             </div>
-            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400">
+            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-border-subtle text-text-muted">
               CLI
             </kbd>
           </button>
@@ -167,16 +167,16 @@ export function Sidebar() {
 
         {/* Divider */}
         <div className="px-3 py-1">
-          <div className="h-px bg-zinc-800/60" />
+          <div className="h-px bg-border-subtle" />
         </div>
 
         {/* Recent Projects Section */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-          <div className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-text-muted uppercase tracking-wider">
             <button
               type="button"
               onClick={() => setRecentOpen(!recentOpen)}
-              className="flex items-center gap-1.5 hover:text-zinc-300 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 hover:text-text-primary transition-colors cursor-pointer"
             >
               {recentOpen ? (
                 <FiChevronDown className="h-3 w-3" />
@@ -188,7 +188,7 @@ export function Sidebar() {
             <Link
               href="/new-project"
               title="New Project"
-              className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors"
+              className="p-1 rounded hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
             >
               <FiPlus className="h-3.5 w-3.5" />
             </Link>
@@ -197,7 +197,7 @@ export function Sidebar() {
           {recentOpen && (
             <div className="space-y-0.5 pt-1">
               {projects.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-zinc-600">
+                <div className="px-3 py-2 text-xs text-text-muted">
                   No projects yet.
                 </div>
               ) : (
@@ -211,8 +211,8 @@ export function Sidebar() {
                       <div
                         className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors ${
                           isCurrent
-                            ? "bg-zinc-900 text-cyan-300 font-medium"
-                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40"
+                            ? "bg-surface-elevated text-accent-primary font-medium border border-border-subtle"
+                            : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
                         }`}
                       >
                         <Link
@@ -221,7 +221,7 @@ export function Sidebar() {
                         >
                           <span
                             className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                              isCurrent ? "bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" : "bg-zinc-600"
+                              isCurrent ? "bg-accent-primary shadow-[0_0_8px_rgba(139,92,246,0.8)]" : "bg-text-muted"
                             }`}
                           />
                           <span className="truncate">{proj.name}</span>
@@ -229,7 +229,7 @@ export function Sidebar() {
                         <button
                           type="button"
                           onClick={(e) => toggleProjectExpand(pId, e)}
-                          className="p-0.5 text-zinc-500 hover:text-zinc-300 rounded cursor-pointer"
+                          className="p-0.5 text-text-muted hover:text-text-primary rounded cursor-pointer"
                         >
                           {isExpanded ? (
                             <FiChevronDown className="h-3 w-3" />
@@ -241,13 +241,13 @@ export function Sidebar() {
 
                       {/* Sub-links (Codemagic pattern) */}
                       {isExpanded && (
-                        <div className="pl-6 pr-2 py-0.5 space-y-0.5 text-[11px] border-l border-zinc-800/80 ml-3">
+                        <div className="pl-6 pr-2 py-0.5 space-y-0.5 text-[11px] border-l border-border-subtle ml-3">
                           <Link
                             href={`/projects/${pId}`}
                             className={`block py-1 px-2 rounded transition-colors ${
                               pathname === `/projects/${pId}`
-                                ? "text-white font-medium bg-zinc-900"
-                                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
+                                ? "text-text-primary font-medium bg-surface-elevated"
+                                : "text-text-muted hover:text-text-primary hover:bg-surface-hover"
                             }`}
                           >
                             Overview
@@ -256,22 +256,22 @@ export function Sidebar() {
                             href={`/projects/${pId}/builds`}
                             className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${
                               pathname.includes(`/projects/${pId}/builds`)
-                                ? "text-white font-medium bg-zinc-900"
-                                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
+                                ? "text-text-primary font-medium bg-surface-elevated"
+                                : "text-text-muted hover:text-text-primary hover:bg-surface-hover"
                             }`}
                           >
-                            <FiPlay className="h-2.5 w-2.5 text-amber-400" />
+                            <FiPlay className="h-2.5 w-2.5 text-amber-500" />
                             Builds
                           </Link>
                           <Link
                             href={`/projects/${pId}/configuration`}
                             className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${
                               pathname.includes(`/projects/${pId}/configuration`)
-                                ? "text-white font-medium bg-zinc-900"
-                                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
+                                ? "text-text-primary font-medium bg-surface-elevated"
+                                : "text-text-muted hover:text-text-primary hover:bg-surface-hover"
                             }`}
                           >
-                            <FiCode className="h-2.5 w-2.5 text-blue-400" />
+                            <FiCode className="h-2.5 w-2.5 text-blue-500" />
                             Configuration
                           </Link>
                         </div>
@@ -286,17 +286,17 @@ export function Sidebar() {
       </div>
 
       {/* Bottom User Footer */}
-      <div className="p-3 border-t border-zinc-800/80 bg-zinc-950/80 relative">
-        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-900/60 transition-colors">
+      <div className="p-3 border-t border-border-subtle bg-surface relative">
+        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-hover transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-zinc-700 to-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-semibold text-zinc-200 shrink-0">
+            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-purple-700 to-indigo-600 border border-border-subtle flex items-center justify-center text-xs font-semibold text-white shrink-0">
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-zinc-200 truncate">
+              <p className="text-xs font-medium text-text-primary truncate">
                 {user?.username || "Developer"}
               </p>
-              <p className="text-[10px] text-zinc-500 truncate">
+              <p className="text-[10px] text-text-muted truncate">
                 {user?.email || "user@flotio.dev"}
               </p>
             </div>
@@ -305,7 +305,7 @@ export function Sidebar() {
             type="button"
             onClick={handleLogout}
             title="Log Out"
-            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
           >
             <FiLogOut className="h-4 w-4" />
           </button>
@@ -314,3 +314,4 @@ export function Sidebar() {
     </aside>
   );
 }
+

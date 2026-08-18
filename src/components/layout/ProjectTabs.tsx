@@ -34,7 +34,7 @@ export function ProjectTabs({ projectId }: ProjectTabsProps) {
   ];
 
   return (
-    <div className="w-full border-b border-zinc-800/80 bg-zinc-950/40 px-6 backdrop-blur-xs">
+    <div className="w-full border-b border-border-subtle bg-surface/50 px-6 backdrop-blur-xs transition-colors duration-200">
       <div className="flex items-center space-x-6">
         {tabs.map((tab) => (
           <Link
@@ -42,11 +42,11 @@ export function ProjectTabs({ projectId }: ProjectTabsProps) {
             href={tab.href}
             className={`flex items-center gap-2 py-3 text-xs font-medium border-b-2 transition-colors ${
               tab.active
-                ? "border-cyan-400 text-white font-semibold"
-                : "border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                ? "border-accent-primary text-text-primary font-semibold"
+                : "border-transparent text-text-muted hover:text-text-primary hover:border-border-default"
             }`}
           >
-            <span className={tab.active ? "text-cyan-400" : "text-zinc-500"}>
+            <span className={tab.active ? "text-accent-primary" : "text-text-muted"}>
               {tab.icon}
             </span>
             {tab.label}
@@ -56,3 +56,4 @@ export function ProjectTabs({ projectId }: ProjectTabsProps) {
     </div>
   );
 }
+

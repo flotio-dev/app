@@ -12,42 +12,43 @@ export const colors = {
     gradient: 'linear-gradient(135deg, #818cf8 0%, #a855f7 100%)',
     gradientHover: 'linear-gradient(135deg, #6366f1 0%, #9333ea 100%)',
   },
-  // Secondary - Pink
+  // Secondary - Pink / Cyan Accent
   secondary: {
     main: '#ec4899',
     light: '#f472b6',
     dark: '#db2777',
+    cyan: '#38bdf8',
   },
   // Text colors
   text: {
     dark: {
-      primary: '#fafafa',
-      secondary: 'rgba(255, 255, 255, 0.7)',
-      muted: 'rgba(255, 255, 255, 0.5)',
-      disabled: 'rgba(255, 255, 255, 0.3)',
+      primary: '#f8fafc',
+      secondary: '#94a3b8',
+      muted: '#64748b',
+      disabled: 'rgba(248, 250, 252, 0.3)',
     },
     light: {
-      primary: '#09090b',
-      secondary: 'rgba(9, 9, 11, 0.7)',
-      muted: 'rgba(9, 9, 11, 0.5)',
-      disabled: 'rgba(9, 9, 11, 0.3)',
+      primary: '#0f172a',
+      secondary: '#475569',
+      muted: '#94a3b8',
+      disabled: 'rgba(15, 23, 42, 0.3)',
     },
   },
   // Background colors
   background: {
     dark: {
-      default: '#181920',
-      paper: '#1f2027',
-      elevated: '#150d24',
-      card: 'rgba(255, 255, 255, 0.02)',
-      cardHover: 'rgba(255, 255, 255, 0.04)',
+      default: '#0d0e12',
+      paper: '#14151c',
+      elevated: '#1b1d27',
+      card: 'rgba(255, 255, 255, 0.03)',
+      cardHover: 'rgba(255, 255, 255, 0.06)',
     },
     light: {
-      default: '#fafafa',
+      default: '#f8fafc',
       paper: '#ffffff',
-      elevated: '#f5f5f5',
-      card: 'rgba(0, 0, 0, 0.02)',
-      cardHover: 'rgba(0, 0, 0, 0.04)',
+      elevated: '#f1f5f9',
+      card: 'rgba(15, 23, 42, 0.02)',
+      cardHover: 'rgba(15, 23, 42, 0.04)',
     },
   },
   // Border colors
@@ -55,13 +56,13 @@ export const colors = {
     dark: {
       default: 'rgba(255, 255, 255, 0.1)',
       light: 'rgba(255, 255, 255, 0.06)',
-      hover: 'rgba(255, 255, 255, 0.15)',
+      hover: 'rgba(255, 255, 255, 0.2)',
       grid: '#7c3aed', // violet grid for dark mode
     },
     light: {
-      default: 'rgba(0, 0, 0, 0.1)',
-      light: 'rgba(0, 0, 0, 0.06)',
-      hover: 'rgba(0, 0, 0, 0.15)',
+      default: 'rgba(15, 23, 42, 0.1)',
+      light: 'rgba(15, 23, 42, 0.06)',
+      hover: 'rgba(15, 23, 42, 0.2)',
       grid: 'rgba(124, 58, 237, 0.10)', // violet très pâle pour le light mode
     },
   },
@@ -69,10 +70,10 @@ export const colors = {
   success: '#22c55e',
   error: '#ef4444',
   warning: '#f59e0b',
-  info: '#3b82f6',
+  info: '#38bdf8',
   heroBackground: {
-    dark: 'linear-gradient(180deg, #181920 0%, #1f2027 40%, #150d24 60%, #181920 100%)',
-    light: 'linear-gradient(180deg, #fafafa 0%, #f8e6ff 40%, #f3e8ff 60%, #fafafa 100%)',
+    dark: 'linear-gradient(180deg, #0d0e12 0%, #14151c 40%, #171226 60%, #0d0e12 100%)',
+    light: 'linear-gradient(180deg, #f8fafc 0%, #f5f3ff 40%, #ede9fe 60%, #f8fafc 100%)',
   },
 };
 

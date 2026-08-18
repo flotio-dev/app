@@ -390,6 +390,21 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
       remove: (keystoreId) =>
         coreRequest<"KeystoreDeleteHandler">(state, { method: "DELETE", path: `/keystore/${seg(keystoreId)}` }),
     },
+    googlePlayCredentials: {
+      list: () =>
+        coreRequest<"GooglePlayCredentialsGetHandler">(state, { method: "GET", path: "/google-play-credentials" }),
+      create: (req) =>
+        coreRequest<"GooglePlayCredentialsPostHandler">(state, {
+          method: "POST",
+          path: "/google-play-credentials",
+          body: req,
+        }),
+      remove: (credentialsId) =>
+        coreRequest<"GooglePlayCredentialsDeleteHandler">(state, {
+          method: "DELETE",
+          path: `/google-play-credentials/${seg(credentialsId)}`,
+        }),
+    },
     builds: {
       list: (projectId) =>
         coreRequest<"BuildsListHandler">(state, { method: "GET", path: `/project/${seg(projectId)}/builds` }),

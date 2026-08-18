@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { useProjectConfig } from "@/context/ProjectConfigContext";
@@ -8,8 +8,10 @@ import ProjectEnvironmentVariablesCard from "./ProjectEnvironmentVariablesCard";
 import ProjectKeyStoreCard from "./ProjectKeyStoreCard";
 import { AccordionSection, AccordionGroup } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, Textarea } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import type { ProjectConfig } from "@/lib/api/types";
 import {
   FiCpu,
   FiSliders,
@@ -17,6 +19,10 @@ import {
   FiAlertTriangle,
   FiTrash2,
   FiCheck,
+  FiTerminal,
+  FiCheckSquare,
+  FiUploadCloud,
+  FiLayers,
 } from "react-icons/fi";
 
 const ProjectConfigurationContent: React.FC = () => {
@@ -26,30 +32,143 @@ const ProjectConfigurationContent: React.FC = () => {
   const { client } = useApi();
   const { project, config, refresh } = useProjectConfig();
 
-  const [flutterVersion, setFlutterVersion] = useState(config?.flutter_version || "3.19.0");
-  const [projectPath, setProjectPath] = useState(config?.project_path || ".");
+  // Form states
+  // 1. Build & Runtime Defaults
+  const [flutterVersion, setFlutterVersion] = useState("3.19.0");
+  const [projectPath, setProjectPath] = useState(".");
+  const [buildMode, setBuildMode] = useState<string>("release");
+  const [androidBuildFormat, setAndroidBuildFormat] = useState<string>("aab");
+  const [platforms, setPlatforms] = useState<string[]>(["android"]);
+  const [androidBuildArgs, setAndroidBuildArgs] = useState("");
+  const [iosBuildArgs, setIosBuildArgs] = useState("");
+  const [webBuildArgs, setWebBuildArgs] = useState("");
+  const [dependencyCaching, setDependencyCaching] = useState(true);
+
+  // 2. Testing & Quality Gates
+  const [enableFlutterAnalyze, setEnableFlutterAnalyze] = useState(false);
+  const [flutterAnalyzeArgs, setFlutterAnalyzeArgs] = useState("");
+  const [enableFlutterTest, setEnableFlutterTest] = useState(false);
+  const [flutterTestArgs, setFlutterTestArgs] = useState("");
+  const [enableFlutterDriver, setEnableFlutterDriver] = useState(false);
+  const [flutterDriverArgs, setFlutterDriverArgs] = useState("");
+  const [publishEvenIfTestsFail, setPublishEvenIfTestsFail] = useState(false);
+
+  // 3. Lifecycle Scripts
+  const [postCloneScript, setPostCloneScript] = useState("");
+  const [preTestScript, setPreTestScript] = useState("");
+  const [postTestScript, setPostTestScript] = useState("");
+  const [preBuildScript, setPreBuildScript] = useState("");
+  const [postBuildScript, setPostBuildScript] = useState("");
+
+  // 4. Distribution & Google Play
+  const [packageName, setPackageName] = useState("");
+  const [enableGooglePlayPublishing, setEnableGooglePlayPublishing] = useState(false);
+  const [googlePlayTrack, setGooglePlayTrack] = useState("internal");
+  const [rolloutFraction, setRolloutFraction] = useState("1.0");
+  const [submitAsDraft, setSubmitAsDraft] = useState(false);
+  const [doNotSendForReview, setDoNotSendForReview] = useState(false);
+
+  // UI States
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccessSection, setSaveSuccessSection] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSaveFlutterSettings = async () => {
+  // Sync state from config
+  useEffect(() => {
+    if (config) {
+      setFlutterVersion(config.flutter_version || "3.19.0");
+      setProjectPath(config.project_path || ".");
+      setBuildMode(config.build_mode || "release");
+      setAndroidBuildFormat(config.android_build_format || "aab");
+      setPlatforms(config.platforms && config.platforms.length > 0 ? config.platforms : ["android"]);
+      setAndroidBuildArgs(config.android_build_args || "");
+      setIosBuildArgs(config.ios_build_args || "");
+      setWebBuildArgs(config.web_build_args || "");
+      setDependencyCaching(config.dependency_caching ?? true);
+
+      setEnableFlutterAnalyze(Boolean(config.enable_flutter_analyze));
+      setFlutterAnalyzeArgs(config.flutter_analyze_args || "");
+      setEnableFlutterTest(Boolean(config.enable_flutter_test));
+      setFlutterTestArgs(config.flutter_test_args || "");
+      setEnableFlutterDriver(Boolean(config.enable_flutter_driver));
+      setFlutterDriverArgs(config.flutter_driver_args || "");
+      setPublishEvenIfTestsFail(Boolean(config.publish_even_if_tests_fail));
+
+      setPostCloneScript(config.post_clone_script || "");
+      setPreTestScript(config.pre_test_script || "");
+      setPostTestScript(config.post_test_script || "");
+      setPreBuildScript(config.pre_build_script || "");
+      setPostBuildScript(config.post_build_script || "");
+
+      setPackageName(config.package_name || "");
+      setEnableGooglePlayPublishing(Boolean(config.enable_google_play_publishing));
+      setGooglePlayTrack(config.google_play_track || "internal");
+      setRolloutFraction(config.rollout_fraction !== undefined ? String(config.rollout_fraction) : "1.0");
+      setSubmitAsDraft(Boolean(config.submit_as_draft));
+      setDoNotSendForReview(Boolean(config.do_not_send_for_review));
+    }
+  }, [config]);
+
+  const togglePlatform = (p: string) => {
+    setPlatforms((prev) =>
+      prev.includes(p) ? prev.filter((item) => item !== p) : [...prev, p]
+    );
+  };
+
+  const handleSaveConfig = async (sectionKey: string) => {
     if (!projectId) return;
     setIsSavingConfig(true);
+    setSaveError(null);
+
+    const parsedRollout = parseFloat(rolloutFraction);
+
+    const updatedConfig: ProjectConfig = {
+      ...config,
+      flutter_version: flutterVersion,
+      project_path: projectPath,
+      build_mode: buildMode,
+      android_build_format: androidBuildFormat,
+      platforms: platforms,
+      android_build_args: androidBuildArgs,
+      ios_build_args: iosBuildArgs,
+      web_build_args: webBuildArgs,
+      dependency_caching: dependencyCaching,
+
+      enable_flutter_analyze: enableFlutterAnalyze,
+      flutter_analyze_args: flutterAnalyzeArgs,
+      enable_flutter_test: enableFlutterTest,
+      flutter_test_args: flutterTestArgs,
+      enable_flutter_driver: enableFlutterDriver,
+      flutter_driver_args: flutterDriverArgs,
+      publish_even_if_tests_fail: publishEvenIfTestsFail,
+
+      post_clone_script: postCloneScript,
+      pre_test_script: preTestScript,
+      post_test_script: postTestScript,
+      pre_build_script: preBuildScript,
+      post_build_script: postBuildScript,
+
+      package_name: packageName,
+      enable_google_play_publishing: enableGooglePlayPublishing,
+      google_play_track: googlePlayTrack,
+      rollout_fraction: isNaN(parsedRollout) ? 1.0 : parsedRollout,
+      submit_as_draft: submitAsDraft,
+      do_not_send_for_review: doNotSendForReview,
+    };
+
     try {
-      await client.projects.updateConfig(Number(projectId), {
-        ...config,
-        flutter_version: flutterVersion,
-        project_path: projectPath,
-      });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      await client.projects.updateConfig(Number(projectId), updatedConfig);
+      setSaveSuccessSection(sectionKey);
+      setTimeout(() => setSaveSuccessSection(null), 3000);
       try {
         await refresh();
       } catch {}
-    } catch (err) {
-      console.error("Failed to save flutter config", err);
+    } catch (err: unknown) {
+      console.error("Failed to save configuration", err);
+      setSaveError(err instanceof Error ? err.message : "Failed to save configuration");
     } finally {
       setIsSavingConfig(false);
     }
@@ -70,15 +189,23 @@ const ProjectConfigurationContent: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {saveError && (
+        <div className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <FiAlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+          <span>{saveError}</span>
+        </div>
+      )}
+
       <AccordionGroup>
-        {/* Accordion 1: Flutter & Build Runtime Defaults */}
+        {/* Accordion 1: Flutter & Build Runtime */}
         <AccordionSection
           defaultOpen={true}
           title="Flutter & Build Defaults"
-          description="Default SDK channel, target directory, and build parameters for automated pipelines."
+          description="SDK channels, target build path, output format, and platform configurations."
           icon={<FiCpu className="h-4 w-4 text-cyan-400" />}
+          badge={<Badge variant="info" size="sm">Core</Badge>}
         >
-          <div className="space-y-4 pt-3">
+          <div className="space-y-5 pt-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Target Build Path (project_path)"
@@ -95,15 +222,142 @@ const ProjectConfigurationContent: React.FC = () => {
                 onChange={(e) => setFlutterVersion(e.target.value)}
                 placeholder="3.19.0"
                 className="bg-zinc-900 border-zinc-800 font-mono text-xs"
-                helperText="Target Flutter SDK version to download."
+                helperText="Target Flutter SDK release to download during builds."
+              />
+            </div>
+
+            {/* Build Mode & Android Format */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  Build Mode
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "release", label: "Release" },
+                    { key: "debug", label: "Debug" },
+                    { key: "profile", label: "Profile" },
+                  ].map((mode) => (
+                    <button
+                      key={mode.key}
+                      type="button"
+                      onClick={() => setBuildMode(mode.key)}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all cursor-pointer text-center ${
+                        buildMode === mode.key
+                          ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-300 font-semibold shadow-xs"
+                          : "bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                  Android Build Format
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "aab", label: "AAB (App Bundle)" },
+                    { key: "apk", label: "APK (Binary)" },
+                  ].map((format) => (
+                    <button
+                      key={format.key}
+                      type="button"
+                      onClick={() => setAndroidBuildFormat(format.key)}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all cursor-pointer text-center ${
+                        androidBuildFormat === format.key
+                          ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-300 font-semibold shadow-xs"
+                          : "bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      }`}
+                    >
+                      {format.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Target Platforms */}
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Target Platforms
+              </label>
+              <div className="flex flex-wrap gap-2.5">
+                {[
+                  { key: "android", label: "Android" },
+                  { key: "ios", label: "iOS" },
+                  { key: "web", label: "Web" },
+                ].map((p) => {
+                  const isSelected = platforms.includes(p.key);
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => togglePlatform(p.key)}
+                      className={`px-3.5 py-1.5 text-xs font-medium rounded-md border transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-cyan-950/50 border-cyan-500/60 text-cyan-300"
+                          : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Build Args */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <Input
+                label="Android Build Args"
+                value={androidBuildArgs}
+                onChange={(e) => setAndroidBuildArgs(e.target.value)}
+                placeholder="--dart-define=KEY=VAL"
+                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+              />
+              <Input
+                label="iOS Build Args"
+                value={iosBuildArgs}
+                onChange={(e) => setIosBuildArgs(e.target.value)}
+                placeholder="--no-codesign"
+                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+              />
+              <Input
+                label="Web Build Args"
+                value={webBuildArgs}
+                onChange={(e) => setWebBuildArgs(e.target.value)}
+                placeholder="--web-renderer html"
+                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+              />
+            </div>
+
+            {/* Dependency Caching */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-zinc-800/80">
+              <div>
+                <span className="text-xs font-medium text-zinc-200 block">
+                  Enable Dependency Caching
+                </span>
+                <span className="text-[11px] text-zinc-500">
+                  Caches pubspec packages and Gradle dependencies between pipeline builds.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={dependencyCaching}
+                onChange={(e) => setDependencyCaching(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
               />
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-zinc-800/40">
-              {saveSuccess && (
+              {saveSuccessSection === "build" && (
                 <span className="text-xs text-emerald-400 flex items-center gap-1">
                   <FiCheck className="h-3.5 w-3.5" />
-                  Settings updated successfully
+                  Build defaults saved successfully
                 </span>
               )}
               <div className="flex-1" />
@@ -111,21 +365,347 @@ const ProjectConfigurationContent: React.FC = () => {
                 variant="primary"
                 size="sm"
                 isLoading={isSavingConfig}
-                onClick={handleSaveFlutterSettings}
+                onClick={() => handleSaveConfig("build")}
               >
-                Save Defaults
+                Save Build Defaults
               </Button>
             </div>
           </div>
         </AccordionSection>
 
-        {/* Accordion 2: Environment Variables */}
+        {/* Accordion 2: Testing & Quality Gates */}
+        <AccordionSection
+          defaultOpen={false}
+          title="Testing & Quality Gates"
+          description="Static analysis, unit/widget tests, flutter driver, and failure thresholds."
+          icon={<FiCheckSquare className="h-4 w-4 text-emerald-400" />}
+        >
+          <div className="space-y-5 pt-3">
+            {/* Flutter Analyze */}
+            <div className="p-3.5 rounded-lg bg-zinc-900/40 border border-zinc-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-200">Flutter Analyze</span>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Run static code analysis before building artifacts.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableFlutterAnalyze}
+                  onChange={(e) => setEnableFlutterAnalyze(e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                />
+              </div>
+              {enableFlutterAnalyze && (
+                <Input
+                  label="Analyze Arguments"
+                  value={flutterAnalyzeArgs}
+                  onChange={(e) => setFlutterAnalyzeArgs(e.target.value)}
+                  placeholder="--fatal-infos --fatal-warnings"
+                  className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+                />
+              )}
+            </div>
+
+            {/* Flutter Test */}
+            <div className="p-3.5 rounded-lg bg-zinc-900/40 border border-zinc-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-200">Flutter Tests</span>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Execute flutter unit and widget test suites.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableFlutterTest}
+                  onChange={(e) => setEnableFlutterTest(e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                />
+              </div>
+              {enableFlutterTest && (
+                <Input
+                  label="Test Arguments"
+                  value={flutterTestArgs}
+                  onChange={(e) => setFlutterTestArgs(e.target.value)}
+                  placeholder="--coverage --concurrency=4"
+                  className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+                />
+              )}
+            </div>
+
+            {/* Flutter Driver */}
+            <div className="p-3.5 rounded-lg bg-zinc-900/40 border border-zinc-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-200">Flutter Driver (Integration)</span>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Run integration test drivers on connected devices or emulators.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableFlutterDriver}
+                  onChange={(e) => setEnableFlutterDriver(e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                />
+              </div>
+              {enableFlutterDriver && (
+                <Input
+                  label="Driver Arguments"
+                  value={flutterDriverArgs}
+                  onChange={(e) => setFlutterDriverArgs(e.target.value)}
+                  placeholder="--target=test_driver/app.dart"
+                  className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+                />
+              )}
+            </div>
+
+            {/* Publish even if tests fail */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-zinc-800/80">
+              <div>
+                <span className="text-xs font-medium text-zinc-200 block">
+                  Publish Even If Tests Fail
+                </span>
+                <span className="text-[11px] text-zinc-500">
+                  Allow publishing step to proceed even when testing gates report failures.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={publishEvenIfTestsFail}
+                onChange={(e) => setPublishEvenIfTestsFail(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/40">
+              {saveSuccessSection === "testing" && (
+                <span className="text-xs text-emerald-400 flex items-center gap-1">
+                  <FiCheck className="h-3.5 w-3.5" />
+                  Testing gates saved successfully
+                </span>
+              )}
+              <div className="flex-1" />
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={isSavingConfig}
+                onClick={() => handleSaveConfig("testing")}
+              >
+                Save Testing Config
+              </Button>
+            </div>
+          </div>
+        </AccordionSection>
+
+        {/* Accordion 3: Lifecycle Scripts & Hooks */}
+        <AccordionSection
+          defaultOpen={false}
+          title="Lifecycle Scripts & Hooks"
+          description="Custom bash scripts injected into the build pipeline at specific execution phases."
+          icon={<FiTerminal className="h-4 w-4 text-purple-400" />}
+        >
+          <div className="space-y-4 pt-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Post Clone Script
+              </label>
+              <Textarea
+                value={postCloneScript}
+                onChange={(e) => setPostCloneScript(e.target.value)}
+                placeholder="# Runs immediately after git checkout&#10;flutter pub get"
+                rows={3}
+                className="bg-black border-zinc-800 font-mono text-xs text-zinc-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Pre Test Script
+                </label>
+                <Textarea
+                  value={preTestScript}
+                  onChange={(e) => setPreTestScript(e.target.value)}
+                  placeholder="# Runs before test suite starts"
+                  rows={3}
+                  className="bg-black border-zinc-800 font-mono text-xs text-zinc-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Post Test Script
+                </label>
+                <Textarea
+                  value={postTestScript}
+                  onChange={(e) => setPostTestScript(e.target.value)}
+                  placeholder="# Runs after tests finish"
+                  rows={3}
+                  className="bg-black border-zinc-800 font-mono text-xs text-zinc-200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Pre Build Script
+                </label>
+                <Textarea
+                  value={preBuildScript}
+                  onChange={(e) => setPreBuildScript(e.target.value)}
+                  placeholder="# Runs right before flutter build"
+                  rows={3}
+                  className="bg-black border-zinc-800 font-mono text-xs text-zinc-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Post Build Script
+                </label>
+                <Textarea
+                  value={postBuildScript}
+                  onChange={(e) => setPostBuildScript(e.target.value)}
+                  placeholder="# Runs after flutter build finishes"
+                  rows={3}
+                  className="bg-black border-zinc-800 font-mono text-xs text-zinc-200"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/40">
+              {saveSuccessSection === "scripts" && (
+                <span className="text-xs text-emerald-400 flex items-center gap-1">
+                  <FiCheck className="h-3.5 w-3.5" />
+                  Lifecycle scripts saved successfully
+                </span>
+              )}
+              <div className="flex-1" />
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={isSavingConfig}
+                onClick={() => handleSaveConfig("scripts")}
+              >
+                Save Scripts
+              </Button>
+            </div>
+          </div>
+        </AccordionSection>
+
+        {/* Accordion 4: Distribution & Google Play */}
+        <AccordionSection
+          defaultOpen={false}
+          title="Distribution & Store Publishing"
+          description="Application package identifier, Google Play release tracks, and rollout parameters."
+          icon={<FiUploadCloud className="h-4 w-4 text-amber-400" />}
+        >
+          <div className="space-y-5 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Package Name (Application ID)"
+                value={packageName}
+                onChange={(e) => setPackageName(e.target.value)}
+                placeholder="com.example.myapp"
+                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+                helperText="Android applicationId used for Google Play Console identification."
+              />
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Google Play Track
+                </label>
+                <select
+                  value={googlePlayTrack}
+                  onChange={(e) => setGooglePlayTrack(e.target.value)}
+                  className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-100 focus:border-zinc-500 focus:outline-none"
+                >
+                  <option value="internal">internal (Internal Testing)</option>
+                  <option value="alpha">alpha (Closed Testing)</option>
+                  <option value="beta">beta (Open Testing)</option>
+                  <option value="production">production (Production)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Rollout Fraction (0.0 to 1.0)"
+                value={rolloutFraction}
+                onChange={(e) => setRolloutFraction(e.target.value)}
+                placeholder="1.0"
+                type="number"
+                step="0.05"
+                min="0"
+                max="1"
+                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
+                helperText="1.0 = 100% rollout to all users."
+              />
+
+              <div className="space-y-3 pt-2">
+                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableGooglePlayPublishing}
+                    onChange={(e) => setEnableGooglePlayPublishing(e.target.checked)}
+                    className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                  />
+                  <span>Enable Automated Google Play Publishing</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={submitAsDraft}
+                    onChange={(e) => setSubmitAsDraft(e.target.checked)}
+                    className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                  />
+                  <span>Submit as Draft Release</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={doNotSendForReview}
+                    onChange={(e) => setDoNotSendForReview(e.target.checked)}
+                    className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer h-4 w-4"
+                  />
+                  <span>Do Not Send For Review Immediately</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/40">
+              {saveSuccessSection === "distribution" && (
+                <span className="text-xs text-emerald-400 flex items-center gap-1">
+                  <FiCheck className="h-3.5 w-3.5" />
+                  Distribution configuration saved successfully
+                </span>
+              )}
+              <div className="flex-1" />
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={isSavingConfig}
+                onClick={() => handleSaveConfig("distribution")}
+              >
+                Save Distribution Config
+              </Button>
+            </div>
+          </div>
+        </AccordionSection>
+
+        {/* Accordion 5: Environment Variables */}
         <ProjectEnvironmentVariablesCard projectId={projectId} />
 
-        {/* Accordion 3: Android Keystores & Signing */}
+        {/* Accordion 6: Android Keystores & Signing */}
         <ProjectKeyStoreCard projectId={projectId} />
 
-        {/* Accordion 4: Danger Zone */}
+        {/* Accordion 7: Danger Zone */}
         <AccordionSection
           defaultOpen={false}
           title="Danger Zone"
@@ -174,7 +754,7 @@ const ProjectConfigurationContent: React.FC = () => {
         }
       >
         <p className="text-xs text-rose-300">
-          This action cannot be undone. All pipeline data will be lost.
+          This action cannot be undone. All pipeline data and build configurations will be permanently lost.
         </p>
       </Modal>
     </div>

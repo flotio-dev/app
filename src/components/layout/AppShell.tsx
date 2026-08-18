@@ -21,7 +21,7 @@ export function AppShell({
   fullWidth = false,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-cyan-500/20 selection:text-cyan-200">
+    <div className="min-h-screen bg-canvas text-text-primary flex flex-col font-sans selection:bg-purple-500/20 selection:text-purple-300 transition-colors duration-200">
       {/* Persistent Left Sidebar */}
       <Sidebar />
 
@@ -45,3 +45,4 @@ export function AppShell({
     </div>
   );
 }
+

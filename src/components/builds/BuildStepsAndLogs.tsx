@@ -2,10 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { parseAnsiLine, stripAnsi } from "@/lib/ansiParser";
-import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import {
   FiCheckCircle,
   FiXCircle,
@@ -15,7 +12,6 @@ import {
   FiChevronRight,
   FiCopy,
   FiDownload,
-  FiSearch,
   FiTerminal,
   FiCheck,
 } from "react-icons/fi";
@@ -31,13 +27,28 @@ interface BuildStepsAndLogsProps {
   logs: string[];
 }
 
+const AnsiLogLine: React.FC<{ line: string; className?: string }> = ({ line, className }) => {
+  const segments = useMemo(() => parseAnsiLine(line), [line]);
+  return (
+    <div className={className}>
+      {segments.map((segment, idx) => (
+        <span
+          key={idx}
+          style={{
+            color: segment.color || undefined,
+            fontWeight: segment.bold ? 600 : undefined,
+          }}
+        >
+          {segment.text}
+        </span>
+      ))}
+    </div>
+  );
+};
+
 const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) => {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set([0]));
-  const [autoScroll, setAutoScroll] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
-
-  const terminalEndRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Find running step index
@@ -50,14 +61,7 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
     }
   }, [currentRunningStepIndex]);
 
-  // Auto-scroll when new logs arrive if autoScroll is on
-  useEffect(() => {
-    if (autoScroll) {
-      terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [logs, autoScroll]);
-
-  // Extract step markers from logs
+  // Extract step markers from logs (e.g. [1/5], [2/5])
   const stepMarkers = useMemo(() => {
     const markers: Record<number, number> = {};
     steps.forEach((step, index) => {
@@ -76,6 +80,11 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
   }, [steps, logs]);
 
   const getStepLogs = (stepIndex: number): string[] => {
+    // If no step markers matched at all, display all logs in the first step
+    if (Object.keys(stepMarkers).length === 0) {
+      return stepIndex === 0 ? logs : [];
+    }
+
     if (stepMarkers[stepIndex] === undefined) {
       return [];
     }
@@ -110,47 +119,56 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
     setExpandedSteps(new Set());
   };
 
-  const handleCopyLogs = () => {
-    const rawText = logs.map((l) => stripAnsi(l)).join("\n");
-    navigator.clipboard.writeText(rawText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLogs = async () => {
+    try {
+      const plainLogs = logs.map((l) => stripAnsi(l)).join("\n");
+      await navigator.clipboard.writeText(plainLogs);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy logs:", err);
+    }
   };
 
   const handleDownloadLogs = () => {
-    const rawText = logs.map((l) => stripAnsi(l)).join("\n");
-    const blob = new Blob([rawText], { type: "text/plain;charset=utf-8" });
+    const plainLogs = logs.map((l) => stripAnsi(l)).join("\n");
+    const blob = new Blob([plainLogs], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `build-logs-${Date.now()}.log`;
-    link.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `build-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
   const getStepIcon = (status: BuildStep["status"]) => {
     switch (status) {
       case "success":
-        return <FiCheckCircle className="h-4 w-4 text-emerald-400" />;
+        return <FiCheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />;
       case "failed":
-        return <FiXCircle className="h-4 w-4 text-rose-400" />;
+        return <FiXCircle className="h-4 w-4 text-rose-400 shrink-0" />;
       case "running":
-        return <FiLoader className="h-4 w-4 text-amber-400 animate-spin" />;
+        return <FiLoader className="h-4 w-4 text-cyan-400 animate-spin shrink-0" />;
+      case "pending":
       default:
-        return <FiCircle className="h-4 w-4 text-zinc-600" />;
+        return <FiCircle className="h-4 w-4 text-zinc-600 shrink-0" />;
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Step Accordion List */}
+      {/* Steps Accordion Header & Global Actions */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between px-1 pb-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 pb-1">
           <div className="flex items-center gap-2">
             <FiTerminal className="h-4 w-4 text-cyan-400" />
             <h3 className="text-sm font-semibold text-zinc-200">Pipeline Stages</h3>
+            <span className="text-xs text-zinc-500 font-mono">({logs.length} log lines)</span>
           </div>
-          <div className="flex items-center gap-2 text-xs">
+
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <button
               type="button"
               onClick={handleExpandAll}
@@ -166,36 +184,74 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
             >
               Collapse all
             </button>
+            <span className="text-zinc-700">•</span>
+
+            <button
+              type="button"
+              onClick={handleCopyLogs}
+              className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors"
+              title="Copy all logs"
+            >
+              {copied ? (
+                <>
+                  <FiCheck className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Copied</span>
+                </>
+              ) : (
+                <>
+                  <FiCopy className="h-3.5 w-3.5" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+
+            <span className="text-zinc-700">•</span>
+
+            <button
+              type="button"
+              onClick={handleDownloadLogs}
+              className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors"
+              title="Download all logs"
+            >
+              <FiDownload className="h-3.5 w-3.5" />
+              <span>Download</span>
+            </button>
           </div>
         </div>
 
-        {steps.map((step, idx) => {
-          const isExpanded = expandedSteps.has(idx);
-          const stepLogs = getStepLogs(idx);
+        {/* Steps Accordion */}
+        {steps.map((step, index) => {
+          const isExpanded = expandedSteps.has(index);
+          const stepLogs = getStepLogs(index);
 
           return (
             <div
-              key={step.name + idx}
+              key={index}
               ref={(el) => {
-                if (el) stepRefs.current.set(idx, el);
+                if (el) stepRefs.current.set(index, el);
+                else stepRefs.current.delete(index);
               }}
-              className={`rounded-xl border transition-all duration-150 overflow-hidden ${
-                step.status === "running"
-                  ? "border-amber-500/40 bg-zinc-950"
-                  : step.status === "failed"
-                  ? "border-rose-500/40 bg-zinc-950"
-                  : "border-zinc-800/80 bg-zinc-950/60"
-              }`}
+              className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden transition-colors"
             >
-              {/* Header */}
+              {/* Step Header Button */}
               <button
                 type="button"
-                onClick={() => toggleStep(idx)}
-                className="w-full flex items-center justify-between p-3.5 text-left hover:bg-zinc-900/40 transition-colors select-none cursor-pointer focus:outline-none"
+                onClick={() => toggleStep(index)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/40 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="shrink-0">{getStepIcon(step.status)}</div>
-                  <span className="text-xs font-semibold text-zinc-100 truncate font-mono">
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  {getStepIcon(step.status)}
+                  <span
+                    className={`text-xs font-mono font-medium truncate ${
+                      step.status === "running"
+                        ? "text-cyan-300"
+                        : step.status === "failed"
+                        ? "text-rose-300"
+                        : step.status === "success"
+                        ? "text-zinc-200"
+                        : "text-zinc-400"
+                    }`}
+                  >
                     {step.name}
                   </span>
                 </div>
@@ -231,12 +287,10 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
                   ) : (
                     <div className="space-y-0.5">
                       {stepLogs.map((log, lIdx) => (
-                        <div
+                        <AnsiLogLine
                           key={lIdx}
+                          line={log}
                           className="leading-relaxed text-zinc-300 whitespace-pre-wrap break-all select-text"
-                          dangerouslySetInnerHTML={{
-                            __html: parseAnsiLine(log),
-                          }}
                         />
                       ))}
                     </div>
@@ -247,86 +301,6 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
           );
         })}
       </div>
-
-      {/* Global Terminal Card */}
-      <Card className="p-0 overflow-hidden mt-6 border-zinc-800 bg-black">
-        {/* Terminal Title Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-zinc-950 border-b border-zinc-800/80">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-rose-500/80" />
-              <span className="h-3 w-3 rounded-full bg-amber-500/80" />
-              <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-            </div>
-            <span className="text-xs font-mono font-semibold text-zinc-300 ml-2">
-              Live Console Output ({logs.length} lines)
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Auto scroll toggle */}
-            <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={autoScroll}
-                onChange={(e) => setAutoScroll(e.target.checked)}
-                className="rounded border-zinc-700 bg-zinc-900 text-cyan-500 focus:ring-0 cursor-pointer"
-              />
-              <span>Auto-scroll</span>
-            </label>
-
-            {/* Copy & Download actions */}
-            <button
-              type="button"
-              onClick={handleCopyLogs}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <FiCheck className="h-3 w-3 text-emerald-400" />
-                  <span>Copied</span>
-                </>
-              ) : (
-                <>
-                  <FiCopy className="h-3 w-3" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadLogs}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors cursor-pointer"
-            >
-              <FiDownload className="h-3 w-3" />
-              <span>Download</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Terminal Body */}
-        <div className="p-4 font-mono text-xs overflow-y-auto max-h-[500px] min-h-[260px] bg-black">
-          {logs.length === 0 ? (
-            <div className="text-zinc-600 py-8 text-center italic">
-              Awaiting console output stream...
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {logs.map((log, idx) => (
-                <div
-                  key={idx}
-                  className="leading-relaxed text-zinc-300 whitespace-pre-wrap break-all select-text hover:bg-zinc-900/40 px-1 -mx-1 rounded"
-                  dangerouslySetInnerHTML={{
-                    __html: parseAnsiLine(log),
-                  }}
-                />
-              ))}
-              <div ref={terminalEndRef} />
-            </div>
-          )}
-        </div>
-      </Card>
     </div>
   );
 };

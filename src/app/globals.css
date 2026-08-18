@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  /* Light Theme Palette */
-  --bg-canvas: #f8fafc;
+  /* Warm Cream Light Theme Palette */
+  --bg-canvas: #faf8f5;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #f1f5f9;
-  --bg-surface-hover: #e2e8f0;
-  --bg-surface-active: #cbd5e1;
+  --bg-surface-elevated: #f4f0e8;
+  --bg-surface-hover: #ece6da;
+  --bg-surface-active: #e0d8c8;
 
-  --border-subtle: rgba(15, 23, 42, 0.06);
-  --border-default: rgba(15, 23, 42, 0.12);
-  --border-hover: rgba(15, 23, 42, 0.2);
-  --border-active: rgba(15, 23, 42, 0.3);
+  --border-subtle: rgba(44, 34, 24, 0.06);
+  --border-default: rgba(44, 34, 24, 0.10);
+  --border-hover: rgba(44, 34, 24, 0.18);
+  --border-active: rgba(44, 34, 24, 0.28);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-inverse: #f8fafc;
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --text-muted: #8c827a;
+  --text-inverse: #faf8f5;
 
   --accent-primary: #8b5cf6;
   --accent-hover: #7c3aed;

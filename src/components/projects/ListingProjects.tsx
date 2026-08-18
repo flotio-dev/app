@@ -226,20 +226,20 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
               <Card
                 key={project.id}
                 hoverable
-                className="group flex flex-col justify-between p-5 transition-all duration-200"
+                onClick={() => router.push(`/projects/${project.id}`)}
+                className="group flex flex-col justify-between p-5 transition-all duration-200 cursor-pointer"
               >
                 <div>
                   {/* Top row: Title + Status */}
                   <div className="flex items-start justify-between gap-3">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="min-w-0 group-hover:text-cyan-300 transition-colors"
-                    >
-                      <h3 className="text-base font-semibold text-zinc-100 truncate">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-300 transition-colors truncate">
                         {project.name}
                       </h3>
-                    </Link>
-                    {getStatusBadge(project.status)}
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {getStatusBadge(project.status)}
+                    </div>
                   </div>
 
                   {/* Git Repo */}
@@ -260,7 +260,7 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
                     <span>{timeAgo}</span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <Link
                       href={`/projects/${project.id}/builds`}
                       title="View Builds"

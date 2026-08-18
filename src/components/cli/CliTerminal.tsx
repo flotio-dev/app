@@ -847,6 +847,13 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
 
     const trimmedCmd = commandLine.trim();
     const parts = trimmedCmd.split(/\s+/);
+    if (trimmedCmd === 'exit' || trimmedCmd === 'quit' || trimmedCmd === 'close') {
+      if (onClose) {
+        onClose();
+        return;
+      }
+    }
+
     const command = parts[0];
 
     if (command === 'clear') {
@@ -872,7 +879,13 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp' && historyIndex < history.length - 1) {
+    if (e.key === 'Escape') {
+      if (onClose) {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+    } else if (e.key === 'ArrowUp' && historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
       setInput(history[newIndex]);
@@ -889,14 +902,14 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
         .drawer-container {
           position: fixed;
           bottom: 0;
-          left: 256px;
+          left: 0;
           right: 0;
           background-color: #1e1e1e;
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
           z-index: 1200;
           display: flex;
           flex-direction: column;
-          font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+          box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+          font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
           color: #d4d4d4;
           border-top: 1px solid #3c3c3c;
           overflow: hidden;
@@ -952,6 +965,10 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
         .action-btn:hover {
           background-color: #37373d;
           color: #ffffff;
+        }
+        .close-btn:hover {
+          background-color: #ef4444 !important;
+          color: #ffffff !important;
         }
         .terminal {
           flex-grow: 1;
@@ -1040,7 +1057,7 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
             )}
           </div>
           <div className="header-actions">
-            <button className="action-btn" onClick={toggleMinimize} title={isMinimized ? "Agrandir" : "Réduire au minimum"}>
+            <button className="action-btn" onClick={toggleMinimize} title={isMinimized ? "Maximize" : "Minimize"}>
               {isMinimized ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="18 15 12 9 6 15"></polyline>
@@ -1051,6 +1068,14 @@ export default function CliTerminal({ onClose }: { onClose?: () => void } = {}) 
                 </svg>
               )}
             </button>
+            {onClose && (
+              <button className="action-btn close-btn" onClick={onClose} title="Close CLI (Esc)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
         <div className="terminal" onClick={() => inputRef.current?.focus()}>

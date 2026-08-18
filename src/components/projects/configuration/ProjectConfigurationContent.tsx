@@ -40,7 +40,6 @@ const ProjectConfigurationContent: React.FC = () => {
   const [androidBuildFormat, setAndroidBuildFormat] = useState<string>("aab");
   const [platforms, setPlatforms] = useState<string[]>(["android"]);
   const [androidBuildArgs, setAndroidBuildArgs] = useState("");
-  const [iosBuildArgs, setIosBuildArgs] = useState("");
   const [webBuildArgs, setWebBuildArgs] = useState("");
   const [dependencyCaching, setDependencyCaching] = useState(true);
 
@@ -67,6 +66,13 @@ const ProjectConfigurationContent: React.FC = () => {
   const [rolloutFraction, setRolloutFraction] = useState("1.0");
   const [submitAsDraft, setSubmitAsDraft] = useState(false);
   const [doNotSendForReview, setDoNotSendForReview] = useState(false);
+  const [googlePlayCredentialsId, setGooglePlayCredentialsId] = useState<number | null>(null);
+  const [googlePlayCredentialsList, setGooglePlayCredentialsList] = useState<Array<{ id?: number; name?: string }>>([]);
+  const [openGooglePlayModal, setOpenGooglePlayModal] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyJson, setNewKeyJson] = useState("");
+  const [isUploadingKey, setIsUploadingKey] = useState(false);
+  const [keyUploadError, setKeyUploadError] = useState<string | null>(null);
 
   // UI States
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -76,6 +82,19 @@ const ProjectConfigurationContent: React.FC = () => {
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const fetchGooglePlayCredentials = async () => {
+    try {
+      const data = await client.googlePlayCredentials.list();
+      setGooglePlayCredentialsList(data.google_play_credentials ?? []);
+    } catch (err) {
+      console.error("Failed to load Google Play credentials", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGooglePlayCredentials();
+  }, []);
+
   // Sync state from config
   useEffect(() => {
     if (config) {
@@ -83,9 +102,8 @@ const ProjectConfigurationContent: React.FC = () => {
       setProjectPath(config.project_path || ".");
       setBuildMode(config.build_mode || "release");
       setAndroidBuildFormat(config.android_build_format || "aab");
-      setPlatforms(config.platforms && config.platforms.length > 0 ? config.platforms : ["android"]);
+      setPlatforms(config.platforms && config.platforms.length > 0 ? config.platforms.filter(p => p !== 'ios') : ["android"]);
       setAndroidBuildArgs(config.android_build_args || "");
-      setIosBuildArgs(config.ios_build_args || "");
       setWebBuildArgs(config.web_build_args || "");
       setDependencyCaching(config.dependency_caching ?? true);
 
@@ -109,6 +127,8 @@ const ProjectConfigurationContent: React.FC = () => {
       setRolloutFraction(config.rollout_fraction !== undefined ? String(config.rollout_fraction) : "1.0");
       setSubmitAsDraft(Boolean(config.submit_as_draft));
       setDoNotSendForReview(Boolean(config.do_not_send_for_review));
+      const rawGPCredId = config.google_play_credentials_id ?? null;
+      setGooglePlayCredentialsId(rawGPCredId === 0 ? null : rawGPCredId);
     }
   }, [config]);
 
@@ -118,6 +138,42 @@ const ProjectConfigurationContent: React.FC = () => {
     );
   };
 
+  const handleUploadGooglePlayKey = async () => {
+    if (!newKeyName.trim() || !newKeyJson.trim()) {
+      setKeyUploadError("Please provide a name and the JSON service account key.");
+      return;
+    }
+
+    try {
+      JSON.parse(newKeyJson);
+    } catch {
+      setKeyUploadError("The provided key is not valid JSON.");
+      return;
+    }
+
+    setIsUploadingKey(true);
+    setKeyUploadError(null);
+
+    try {
+      const res = await client.googlePlayCredentials.create({
+        name: newKeyName.trim(),
+        credentials: newKeyJson.trim(),
+      });
+      const created = res.google_play_credentials;
+      await fetchGooglePlayCredentials();
+      if (created?.id) {
+        setGooglePlayCredentialsId(created.id);
+      }
+      setOpenGooglePlayModal(false);
+      setNewKeyName("");
+      setNewKeyJson("");
+    } catch (err: unknown) {
+      setKeyUploadError(err instanceof Error ? err.message : "Failed to upload Google Play credentials");
+    } finally {
+      setIsUploadingKey(false);
+    }
+  };
+
   const handleSaveConfig = async (sectionKey: string) => {
     if (!projectId) return;
     setIsSavingConfig(true);
@@ -125,15 +181,13 @@ const ProjectConfigurationContent: React.FC = () => {
 
     const parsedRollout = parseFloat(rolloutFraction);
 
-    const updatedConfig: ProjectConfig = {
-      ...config,
+    const updatedConfig: Partial<ProjectConfig> = {
       flutter_version: flutterVersion,
       project_path: projectPath,
       build_mode: buildMode,
       android_build_format: androidBuildFormat,
-      platforms: platforms,
+      platforms: platforms.filter(p => p !== 'ios'),
       android_build_args: androidBuildArgs,
-      ios_build_args: iosBuildArgs,
       web_build_args: webBuildArgs,
       dependency_caching: dependencyCaching,
 
@@ -157,6 +211,7 @@ const ProjectConfigurationContent: React.FC = () => {
       rollout_fraction: isNaN(parsedRollout) ? 1.0 : parsedRollout,
       submit_as_draft: submitAsDraft,
       do_not_send_for_review: doNotSendForReview,
+      google_play_credentials_id: googlePlayCredentialsId ?? undefined,
     };
 
     try {
@@ -288,7 +343,6 @@ const ProjectConfigurationContent: React.FC = () => {
               <div className="flex flex-wrap gap-2.5">
                 {[
                   { key: "android", label: "Android" },
-                  { key: "ios", label: "iOS" },
                   { key: "web", label: "Web" },
                 ].map((p) => {
                   const isSelected = platforms.includes(p.key);
@@ -311,19 +365,12 @@ const ProjectConfigurationContent: React.FC = () => {
             </div>
 
             {/* Custom Build Args */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <Input
                 label="Android Build Args"
                 value={androidBuildArgs}
                 onChange={(e) => setAndroidBuildArgs(e.target.value)}
                 placeholder="--dart-define=KEY=VAL"
-                className="bg-zinc-900 border-zinc-800 font-mono text-xs"
-              />
-              <Input
-                label="iOS Build Args"
-                value={iosBuildArgs}
-                onChange={(e) => setIosBuildArgs(e.target.value)}
-                placeholder="--no-codesign"
                 className="bg-zinc-900 border-zinc-800 font-mono text-xs"
               />
               <Input
@@ -679,6 +726,50 @@ const ProjectConfigurationContent: React.FC = () => {
               </div>
             </div>
 
+            {/* Google Play Service Account Key */}
+            <div className="p-3.5 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-200 block">
+                    Google Play Service Account Key (JSON)
+                  </span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Google Cloud Service Account with Google Play Android Developer API permissions.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpenGooglePlayModal(true)}
+                >
+                  + Add Key
+                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <select
+                  value={googlePlayCredentialsId ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setGooglePlayCredentialsId(val ? Number(val) : null);
+                  }}
+                  className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-100 focus:border-zinc-500 focus:outline-none"
+                >
+                  <option value="">-- No Google Play key selected --</option>
+                  {googlePlayCredentialsList.map((cred) => (
+                    <option key={cred.id} value={cred.id}>
+                      {cred.name || `Key #${cred.id}`}
+                    </option>
+                  ))}
+                </select>
+                {googlePlayCredentialsId && (
+                  <p className="text-[11px] text-emerald-400">
+                    ✓ Key linked to project for automated Play Store releases.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between pt-2 border-t border-zinc-800/40">
               {saveSuccessSection === "distribution" && (
                 <span className="text-xs text-emerald-400 flex items-center gap-1">
@@ -730,6 +821,83 @@ const ProjectConfigurationContent: React.FC = () => {
           </div>
         </AccordionSection>
       </AccordionGroup>
+
+      {/* Upload Google Play Key Modal */}
+      <Modal
+        isOpen={openGooglePlayModal}
+        onClose={() => setOpenGooglePlayModal(false)}
+        title="Upload Google Play Service Account Key"
+        description="Add a Google Cloud service account JSON key to enable automated Google Play distribution."
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setOpenGooglePlayModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={isUploadingKey}
+              onClick={handleUploadGooglePlayKey}
+            >
+              Save Key
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {keyUploadError && (
+            <div className="p-2.5 rounded bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs">
+              {keyUploadError}
+            </div>
+          )}
+
+          <Input
+            label="Key Name"
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="e.g. Google Play Console Key"
+            className="bg-zinc-900 border-zinc-800 text-xs"
+          />
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-zinc-300">
+              Upload JSON Key File
+            </label>
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const text = event.target?.result as string;
+                    setNewKeyJson(text || "");
+                    if (!newKeyName) {
+                      setNewKeyName(f.name.replace(/\.[^/.]+$/, ""));
+                    }
+                  };
+                  reader.readAsText(f);
+                }
+              }}
+              className="block w-full text-xs text-zinc-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-zinc-300">
+              Or Paste Service Account JSON
+            </label>
+            <Textarea
+              value={newKeyJson}
+              onChange={(e) => setNewKeyJson(e.target.value)}
+              placeholder='{"type": "service_account", "project_id": "...", "private_key": "..."}'
+              rows={5}
+              className="bg-zinc-900 border-zinc-800 font-mono text-[11px] text-zinc-200"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal

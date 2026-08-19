@@ -1,0 +1,11 @@
+# No active exceptions.
+#
+# Every future entry must be reviewed and contain an owner and justification in
+# `statement`, plus a finite `expired_at` date. Example:
+# vulnerabilities:
+#   - id: CVE-2099-0001
+#     statement: "Owner: @flotio-dev/security; Justification: no fixed version is available"
+#     expired_at: 2099-01-31
+vulnerabilities: []
+misconfigurations: []
+secrets: []

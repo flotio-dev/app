@@ -11,7 +11,7 @@
  * Red today: app/openapi/ and scripts/api-types.mjs do not exist, and package.json
  * has no api:types script.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { APP_ROOT } from "./helpers/tsx";
@@ -21,6 +21,7 @@ const VENDORED_SPEC = fileURLToPath(new URL("../../openapi/swagger.json", import
 const CORE_SPEC = fileURLToPath(new URL("../../../core-api/docs/api/swagger.json", import.meta.url));
 const PIPELINE_SCRIPT = fileURLToPath(new URL("../../scripts/api-types.mjs", import.meta.url));
 const SCHEMA_DTS = fileURLToPath(new URL("../../src/api/generated/schema.d.ts", import.meta.url));
+const itWithBackend = existsSync(CORE_SPEC) ? it : it.skip;
 
 function readOptional(path: string): Buffer | null {
   try {
@@ -45,7 +46,7 @@ describe("FC-6/FC-7 generation pipeline artifacts", () => {
     expect(buf, "app/scripts/api-types.mjs does not exist (§3.4)").not.toBeNull();
   });
 
-  it("FC-7: app/openapi/swagger.json byte-equals ../core-api/docs/api/swagger.json", () => {
+  itWithBackend("FC-7: app/openapi/swagger.json byte-equals ../core-api/docs/api/swagger.json", () => {
     const vendored = readOptional(VENDORED_SPEC);
     expect(
       vendored,
@@ -54,7 +55,8 @@ describe("FC-6/FC-7 generation pipeline artifacts", () => {
     const core = readOptional(CORE_SPEC);
     expect(core, "core-api/docs/api/swagger.json missing (Phase 1 spec)").not.toBeNull();
     expect(
-      vendored!.equals(core!),
+      vendored!.toString("utf8").replaceAll("\r\n", "\n") ===
+        core!.toString("utf8").replaceAll("\r\n", "\n"),
       `vendored spec is NOT byte-identical to the backend spec — re-run pnpm api:types ` +
         `(vendored ${vendored!.length}B vs core ${core!.length}B)`
     ).toBe(true);

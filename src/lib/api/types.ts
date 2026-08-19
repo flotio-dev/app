@@ -75,6 +75,12 @@ export type KeystoreCreateRequest = Schema["internal_modules_project_handler.Key
 export type KeystoreListResponse = Schema["internal_modules_project_handler.KeystoreListResponse"];
 export type KeystoreResponse = Schema["internal_modules_project_handler.KeystoreResponse"];
 
+// google play credentials
+export type GooglePlayCredentialsDTO = Schema["internal_modules_project_handler.GooglePlayCredentialsDTO"];
+export type GooglePlayCredentialsCreateRequest = Schema["internal_modules_project_handler.GooglePlayCredentialsCreateRequest"];
+export type GooglePlayCredentialsListResponse = Schema["internal_modules_project_handler.GooglePlayCredentialsListResponse"];
+export type GooglePlayCredentialsResponse = Schema["internal_modules_project_handler.GooglePlayCredentialsResponse"];
+
 // builds
 export type BuildDTO = Schema["github_com_flotio-dev_core-api_internal_modules_build_model.BuildDTO"];
 export type BuildRequest = Schema["github_com_flotio-dev_core-api_internal_modules_build_model.BuildRequest"];
@@ -208,6 +214,11 @@ export interface ApiClient {
     list(): Promise<KeystoreListResponse>;
     create(req: KeystoreCreateRequest): Promise<KeystoreResponse>;
     remove(keystoreId: number): Promise<DeleteResponse>;
+  };
+  googlePlayCredentials: {
+    list(): Promise<GooglePlayCredentialsListResponse>;
+    create(req: GooglePlayCredentialsCreateRequest): Promise<GooglePlayCredentialsResponse>;
+    remove(credentialsId: number): Promise<DeleteResponse>;
   };
   builds: {
     list(projectId: number): Promise<BuildsResponse>;

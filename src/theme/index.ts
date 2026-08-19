@@ -28,10 +28,10 @@ export const colors = {
       disabled: 'rgba(248, 250, 252, 0.3)',
     },
     light: {
-      primary: '#0f172a',
-      secondary: '#475569',
-      muted: '#94a3b8',
-      disabled: 'rgba(15, 23, 42, 0.3)',
+      primary: '#1c1917',
+      secondary: '#57534e',
+      muted: '#8c827a',
+      disabled: 'rgba(28, 25, 23, 0.3)',
     },
   },
   // Background colors
@@ -44,11 +44,11 @@ export const colors = {
       cardHover: 'rgba(255, 255, 255, 0.06)',
     },
     light: {
-      default: '#f8fafc',
+      default: '#faf8f5',
       paper: '#ffffff',
-      elevated: '#f1f5f9',
-      card: 'rgba(15, 23, 42, 0.02)',
-      cardHover: 'rgba(15, 23, 42, 0.04)',
+      elevated: '#f4f0e8',
+      card: '#ffffff',
+      cardHover: '#f5f1ea',
     },
   },
   // Border colors
@@ -60,10 +60,10 @@ export const colors = {
       grid: '#7c3aed', // violet grid for dark mode
     },
     light: {
-      default: 'rgba(15, 23, 42, 0.1)',
-      light: 'rgba(15, 23, 42, 0.06)',
-      hover: 'rgba(15, 23, 42, 0.2)',
-      grid: 'rgba(124, 58, 237, 0.10)', // violet très pâle pour le light mode
+      default: 'rgba(44, 34, 24, 0.10)',
+      light: 'rgba(44, 34, 24, 0.06)',
+      hover: 'rgba(44, 34, 24, 0.18)',
+      grid: 'rgba(124, 58, 237, 0.10)',
     },
   },
   // Status colors
@@ -73,7 +73,7 @@ export const colors = {
   info: '#38bdf8',
   heroBackground: {
     dark: 'linear-gradient(180deg, #0d0e12 0%, #14151c 40%, #171226 60%, #0d0e12 100%)',
-    light: 'linear-gradient(180deg, #f8fafc 0%, #f5f3ff 40%, #ede9fe 60%, #f8fafc 100%)',
+    light: 'linear-gradient(180deg, #faf8f5 0%, #f7f3eb 40%, #efe8dc 60%, #faf8f5 100%)',
   },
 };
 

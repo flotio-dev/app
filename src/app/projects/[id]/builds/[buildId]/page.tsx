@@ -61,80 +61,84 @@ export default function BuildDetailsPage() {
     }
   }, [projectId, buildId, client]);
 
-  // Fetch and poll logs
+  // Fetch and poll logs with sequential loop (no overlapping requests)
   useEffect(() => {
-    if (!build) return;
+    if (!projectId || !buildId) return;
 
     let isMounted = true;
-    let pollInterval: NodeJS.Timeout;
-    const connectionId = Math.random().toString(36).substring(2, 15);
+    let isPolling = false;
+    let pollTimer: NodeJS.Timeout | undefined;
+    const connectionId = `web-${Math.random().toString(36).substring(2, 11)}`;
+    let currentLastLine = 0;
 
-    const fetchLogs = async () => {
+    const pollLogs = async () => {
+      if (!isMounted || isPolling) return;
+      isPolling = true;
+
       try {
-        const data = await client.builds.logs(Number(projectId), Number(buildId));
-        if (isMounted) {
-          setLogs(data.logs ?? []);
+        const syncData = await client.builds.syncLogs(
+          Number(projectId),
+          Number(buildId),
+          { connectionId, lastLine: currentLastLine }
+        );
 
-          const isRunning = ["building", "running", "pending"].includes(
-            build.status?.toLowerCase() ?? ""
+        if (!isMounted) return;
+
+        if (syncData.logs && syncData.logs.length > 0) {
+          setLogs((prev) => {
+            if (currentLastLine === 0) {
+              return syncData.logs ?? [];
+            }
+            return [...prev, ...(syncData.logs ?? [])];
+          });
+        }
+
+        if (typeof syncData.last_line === "number" && syncData.last_line > currentLastLine) {
+          currentLastLine = syncData.last_line;
+        } else if (syncData.logs && syncData.logs.length > 0) {
+          currentLastLine += syncData.logs.length;
+        }
+
+        if (syncData.status) {
+          const newStatus = syncData.status;
+          setBuild((prev) => {
+            if (!prev) return null;
+            let resolvedStatus = newStatus;
+            if (
+              syncData.logs &&
+              syncData.logs.length > 0 &&
+              prev.status?.toLowerCase() === "pending"
+            ) {
+              resolvedStatus = "running";
+            }
+            return resolvedStatus !== prev.status ? { ...prev, status: resolvedStatus } : prev;
+          });
+
+          const isTerminal = ["success", "failed", "cancelled", "error", "succeeded"].includes(
+            newStatus.toLowerCase()
           );
 
-          if (isRunning) {
-            let currentLastLine = (data.logs ?? []).length;
-
-            pollInterval = setInterval(async () => {
-              if (!isMounted) return;
-              try {
-                const syncData = await client.builds.syncLogs(
-                  Number(projectId),
-                  Number(buildId),
-                  { connectionId, lastLine: currentLastLine }
-                );
-
-                if (syncData.logs && syncData.logs.length > 0) {
-                  setLogs((prev) => [...prev, ...(syncData.logs ?? [])]);
-                }
-
-                if (typeof syncData.last_line === "number") {
-                  currentLastLine = syncData.last_line;
-                } else {
-                  currentLastLine += syncData.logs?.length || 0;
-                }
-
-                if (isMounted) {
-                  setBuild((prev) => {
-                    if (!prev) return null;
-                    let newStatus = prev.status;
-                    if (
-                      syncData.logs &&
-                      syncData.logs.length > 0 &&
-                      prev.status?.toLowerCase() === "pending"
-                    ) {
-                      newStatus = "running";
-                    } else if (syncData.status) {
-                      newStatus = syncData.status;
-                    }
-                    return newStatus !== prev.status ? { ...prev, status: newStatus } : prev;
-                  });
-                }
-              } catch {
-                // ignore
-              }
-            }, 2500);
+          if (isTerminal && !syncData.has_more) {
+            return; // Build is finished, stop polling
           }
         }
-      } catch (error) {
-        console.error("Failed to fetch logs:", error);
+      } catch (err) {
+        console.warn("Log polling error:", err);
+      } finally {
+        isPolling = false;
+        if (isMounted) {
+          pollTimer = setTimeout(pollLogs, 1500);
+        }
       }
     };
 
-    fetchLogs();
+    pollLogs();
 
     return () => {
       isMounted = false;
-      if (pollInterval) clearInterval(pollInterval);
+      if (pollTimer) clearTimeout(pollTimer);
     };
-  }, [build?.id, projectId, buildId, client]);
+  }, [projectId, buildId, client]);
 
   // Dynamic build steps extracted from logs using core-api STEP markers
   const buildSteps = useMemo(

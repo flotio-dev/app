@@ -1,24 +1,23 @@
 "use client";
 
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { useCliModal } from "@/context/CliModalContext";
-import { ThemeModeContext } from "@/components/preferences/ThemeModeProvider";
-import { FiChevronRight, FiTerminal, FiSun, FiMoon } from "react-icons/fi";
+import { FiChevronRight, FiTerminal, FiMenu } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
 
 interface HeaderProps {
   customBreadcrumbs?: Array<{ label: string; href?: string }>;
   actions?: React.ReactNode;
+  onOpenSidebar?: () => void;
 }
 
-export function Header({ customBreadcrumbs, actions }: HeaderProps) {
+export function Header({ customBreadcrumbs, actions, onOpenSidebar }: HeaderProps) {
   const pathname = usePathname();
   const { client } = useApi();
   const { openCli, setProjectId } = useCliModal();
-  const { mode, toggleMode } = useContext(ThemeModeContext);
   const [projectName, setProjectName] = useState<string>("");
 
   // Extract project id
@@ -101,49 +100,54 @@ export function Header({ customBreadcrumbs, actions }: HeaderProps) {
   const breadcrumbs = buildBreadcrumbs();
 
   return (
-    <header className="h-16 w-full border-b border-border-subtle bg-surface/85 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20 transition-colors duration-200">
-      {/* Left: Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-text-secondary">
-        {breadcrumbs.map((crumb, idx) => {
-          const isLast = idx === breadcrumbs.length - 1;
-          return (
-            <React.Fragment key={crumb.label + idx}>
-              {idx > 0 && <FiChevronRight className="h-3 w-3 text-text-muted shrink-0" />}
-              {crumb.href && !isLast ? (
-                <Link
-                  href={crumb.href}
-                  className="hover:text-text-primary transition-colors font-medium hover:underline underline-offset-4"
-                >
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span className={isLast ? "font-semibold text-text-primary" : "text-text-secondary"}>
-                  {crumb.label}
-                </span>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </nav>
-
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {actions}
-
-        {/* Theme Quick Switcher Toggle */}
+    <header className="h-16 w-full border-b border-border-subtle bg-surface/85 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20 transition-colors duration-200 gap-2">
+      {/* Left: Mobile Hamburger & Breadcrumbs */}
+      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+        {/* Mobile Hamburger Toggle Button */}
         <button
           type="button"
-          onClick={toggleMode}
-          title={mode === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          aria-label="Toggle theme"
-          className="flex items-center justify-center h-8 w-8 rounded-lg text-text-secondary bg-surface-elevated border border-border-subtle hover:border-border-default hover:text-text-primary hover:bg-surface-hover transition-all cursor-pointer shadow-xs"
+          onClick={onOpenSidebar}
+          className="lg:hidden p-2 rounded-lg text-text-secondary bg-surface-elevated border border-border-subtle hover:text-text-primary hover:bg-surface-hover transition-colors shrink-0 cursor-pointer shadow-xs"
+          aria-label="Open sidebar navigation"
         >
-          {mode === "dark" ? (
-            <FiSun className="h-4 w-4 text-amber-400 transition-transform duration-300 rotate-0 hover:rotate-45" />
-          ) : (
-            <FiMoon className="h-4 w-4 text-purple-600 transition-transform duration-300 rotate-0 hover:-rotate-12" />
-          )}
+          <FiMenu className="h-4 w-4" />
         </button>
+
+        {/* Breadcrumb Navigation */}
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-xs text-text-secondary overflow-x-auto no-scrollbar whitespace-nowrap min-w-0 py-1"
+        >
+          {breadcrumbs.map((crumb, idx) => {
+            const isLast = idx === breadcrumbs.length - 1;
+            return (
+              <React.Fragment key={crumb.label + idx}>
+                {idx > 0 && <FiChevronRight className="h-3 w-3 text-text-muted shrink-0" />}
+                {crumb.href && !isLast ? (
+                  <Link
+                    href={crumb.href}
+                    className="hover:text-text-primary transition-colors font-medium hover:underline underline-offset-4 shrink-0"
+                  >
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span
+                    className={`truncate ${
+                      isLast ? "font-semibold text-text-primary" : "text-text-secondary"
+                    }`}
+                  >
+                    {crumb.label}
+                  </span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Right: Actions */}
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        {actions}
 
         {/* Global CLI Quick Button */}
         <button
@@ -155,11 +159,11 @@ export function Header({ customBreadcrumbs, actions }: HeaderProps) {
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-primary bg-surface-elevated border border-border-subtle hover:border-border-default hover:bg-surface-hover transition-all cursor-pointer shadow-xs"
         >
           <FiTerminal className="h-3.5 w-3.5 text-accent-cyan" />
-          <span>CLI</span>
+          <span className="hidden sm:inline">CLI</span>
         </button>
 
         {/* Status indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-text-muted pl-2 border-l border-border-subtle">
+        <div className="hidden md:flex items-center gap-1.5 text-[11px] text-text-muted pl-2 border-l border-border-subtle">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>API Connected</span>
         </div>

@@ -309,7 +309,7 @@ export interface paths {
         };
         /**
          * Get GitHub Repositories
-         * @description Liste les repos accessibles pour l'installation GitHub de l'utilisateur
+         * @description Liste les repos accessibles pour toutes les installations GitHub de l'utilisateur
          */
         get: operations["HandleGithubGetRepositories"];
         put?: never;
@@ -1024,6 +1024,8 @@ export interface components {
             account_login?: string;
             /** @example User */
             account_type?: string;
+            /** @example https://avatars.githubusercontent.com/u/123 */
+            avatar_url?: string;
             /** @example 123456 */
             id?: number;
             /** @example 987654 */
@@ -1046,10 +1048,19 @@ export interface components {
             repositories?: components["schemas"]["github_com_flotio-dev_core-api_internal_modules_github_model.GithubRepository"][];
         };
         "github_com_flotio-dev_core-api_internal_modules_github_model.GithubRepository": {
+            /** @example main */
+            default_branch?: string;
+            description?: string;
             /** @example flotio-dev/api */
             full_name?: string;
             /** @example 123456 */
             id?: number;
+            /** @example 12345678 */
+            installation_id?: number;
+            /** @example true */
+            is_flutter?: boolean;
+            /** @example Dart */
+            language?: string;
             /** @example api */
             name?: string;
             /** @example flotio-dev */
@@ -1939,7 +1950,10 @@ export interface operations {
     };
     HandleDisconnectGithub: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Installation ID spécifique à déconnecter (facultatif) */
+                installation_id?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2063,7 +2077,10 @@ export interface operations {
     };
     HandleGithubCheckInstallation: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Retourner toutes les installations de l'utilisateur */
+                all?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2250,7 +2267,14 @@ export interface operations {
     };
     HandleGithubGetRepositories: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filtrer par installation ID */
+                installation_id?: number;
+                /** @description Filtrer par organisation ou utilisateur */
+                owner?: string;
+                /** @description Filtrer uniquement les projets Flutter */
+                flutter_only?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

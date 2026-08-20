@@ -239,13 +239,17 @@ export interface ApiClient {
   };
   github: {
     /** Enveloped: returns `details.repositories`. */
-    repos(): Promise<GithubRepositoriesResponse>;
+    repos(params?: {
+      installation_id?: number;
+      owner?: string;
+      flutter_only?: boolean;
+    }): Promise<GithubRepositoriesResponse>;
     /** Enveloped: returns `details` (GithubInstallationResponse). */
     checkInstallation(): Promise<GithubInstallationResponse>;
     /** Enveloped: returns `details` (PostInstallationResponse). */
     postInstallation(installationId: number): Promise<PostInstallationResponse>;
     /** Enveloped: returns `details` (DeleteResponse). */
-    disconnect(): Promise<DeleteResponse>;
+    disconnect(installationId?: number): Promise<DeleteResponse>;
   };
   flutter: {
     versions(): Promise<FlutterVersionsResponse>;

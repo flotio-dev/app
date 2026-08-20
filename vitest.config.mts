@@ -22,7 +22,7 @@ export default {
     },
   },
   test: {
-    include: ["tests/contract/**/*.test.ts"],
+    include: ["tests/**/*.test.ts"],
     environment: "node",
   },
 };

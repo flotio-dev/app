@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import BuildDetailsHeader from "@/components/builds/BuildDetailsHeader";
 import BuildStepsAndLogs from "@/components/builds/BuildStepsAndLogs";
 import { useApi } from "@/hooks/useApi";
 import { format } from "date-fns";
-import { stripAnsi } from "@/lib/ansiParser";
+import { parseBuildLogsToSteps } from "@/lib/buildLogParser";
 import type { BuildDTO, Project } from "@/lib/api/types";
 
 export default function BuildDetailsPage() {
@@ -136,67 +136,11 @@ export default function BuildDetailsPage() {
     };
   }, [build?.id, projectId, buildId, client]);
 
-  // Extract dynamic build steps from logs
-  const extractStepsFromLogs = () => {
-    const detectedSteps = new Map<string, string>();
-
-    logs.forEach((log) => {
-      const plainLog = stripAnsi(log);
-      const stepMatch = plainLog.match(/^\[(\d+\/\d+)\]\s+(.+)$/);
-      if (stepMatch) {
-        const [, stepKey, label] = stepMatch;
-        detectedSteps.set(`[${stepKey}]`, label.trim());
-      }
-    });
-
-    const defaultSteps = [
-      { key: "[1/8]", label: "Cloning repository..." },
-      { key: "[2/8]", label: "Detecting required Flutter/Dart version..." },
-      { key: "[3/8]", label: "Processing environment files..." },
-      { key: "[4/8]", label: "Keystore setup" },
-      { key: "[5/8]", label: "Getting Flutter dependencies..." },
-      { key: "[6/8]", label: "Building Flutter application..." },
-      { key: "[7/8]", label: "Generating build information..." },
-      { key: "[8/8]", label: "Uploading artifacts to S3..." },
-    ];
-
-    return defaultSteps.map((step) => {
-      const detected = detectedSteps.has(step.key);
-      const detectLabel = detected ? detectedSteps.get(step.key)! : step.label;
-
-      let status: "pending" | "running" | "success" | "failed" = "pending";
-
-      if (detected) {
-        const logsWithStep = logs.filter((log) => stripAnsi(log).includes(step.key));
-        const hasError = logsWithStep.some((log) => {
-          const plainLog = stripAnsi(log).toLowerCase();
-          return plainLog.includes("error") || plainLog.includes("✗") || plainLog.includes("failed");
-        });
-
-        if (hasError) {
-          status = "failed";
-        } else {
-          const lastDetectedKey = Array.from(detectedSteps.keys()).pop();
-          if (step.key === lastDetectedKey && build) {
-            status = ["building", "running", "pending"].includes(
-              build.status?.toLowerCase() ?? ""
-            )
-              ? "running"
-              : "success";
-          } else {
-            status = "success";
-          }
-        }
-      }
-
-      return {
-        name: `${step.key} ${detectLabel}`,
-        status,
-      };
-    });
-  };
-
-  const buildSteps = extractStepsFromLogs();
+  // Dynamic build steps extracted from logs using core-api STEP markers
+  const buildSteps = useMemo(
+    () => parseBuildLogsToSteps(logs, build?.status),
+    [logs, build?.status]
+  );
 
   if (isLoading) {
     return (

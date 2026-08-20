@@ -891,7 +891,7 @@ const ProjectConfigurationContent: React.FC = () => {
             <Textarea
               value={newKeyJson}
               onChange={(e) => setNewKeyJson(e.target.value)}
-              placeholder='{"type": "service_account", "project_id": "...", "private_key": "..."}'
+              placeholder="Paste your Google Play service account JSON key content here..."
               rows={5}
               className="bg-zinc-900 border-zinc-800 font-mono text-[11px] text-zinc-200"
             />

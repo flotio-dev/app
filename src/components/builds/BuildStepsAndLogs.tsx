@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { parseAnsiLine, stripAnsi } from "@/lib/ansiParser";
+import type { ParsedBuildStep } from "@/lib/buildLogParser";
 import { Badge } from "@/components/ui/Badge";
 import {
   FiCheckCircle,
@@ -16,14 +17,18 @@ import {
   FiCheck,
 } from "react-icons/fi";
 
-interface BuildStep {
+export interface BuildStep {
   name: string;
   status: "pending" | "running" | "success" | "failed";
   duration?: string;
+  logs?: string[];
+  startIndex?: number;
+  endIndex?: number;
+  stepNumber?: number;
 }
 
 interface BuildStepsAndLogsProps {
-  steps: BuildStep[];
+  steps: (BuildStep | ParsedBuildStep)[];
   logs: string[];
 }
 
@@ -49,54 +54,33 @@ const AnsiLogLine: React.FC<{ line: string; className?: string }> = ({ line, cla
 const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) => {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set([0]));
   const [copied, setCopied] = useState(false);
+  const [stepCopied, setStepCopied] = useState<number | null>(null);
   const stepRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // Find running step index
+  // Find running or failed step index
   const currentRunningStepIndex = steps.findIndex((s) => s.status === "running");
+  const failedStepIndex = steps.findIndex((s) => s.status === "failed");
 
-  // Auto-expand current running step
+  // Auto-expand current running step or failed step
   useEffect(() => {
-    if (currentRunningStepIndex !== -1) {
+    if (failedStepIndex !== -1) {
+      setExpandedSteps((prev) => new Set(prev).add(failedStepIndex));
+    } else if (currentRunningStepIndex !== -1) {
       setExpandedSteps((prev) => new Set(prev).add(currentRunningStepIndex));
     }
-  }, [currentRunningStepIndex]);
-
-  // Extract step markers from logs (e.g. [1/5], [2/5])
-  const stepMarkers = useMemo(() => {
-    const markers: Record<number, number> = {};
-    steps.forEach((step, index) => {
-      const match = step.name.match(/\[(\d+\/\d+)\]/);
-      const stepLabel = match ? match[1] : null;
-      if (stepLabel) {
-        const logIndex = logs.findIndex((log) =>
-          stripAnsi(log).includes(`[${stepLabel}]`)
-        );
-        if (logIndex !== -1) {
-          markers[index] = logIndex;
-        }
-      }
-    });
-    return markers;
-  }, [steps, logs]);
+  }, [currentRunningStepIndex, failedStepIndex]);
 
   const getStepLogs = (stepIndex: number): string[] => {
-    // If no step markers matched at all, display all logs in the first step
-    if (Object.keys(stepMarkers).length === 0) {
-      return stepIndex === 0 ? logs : [];
+    const step = steps[stepIndex];
+    if (step && "logs" in step && Array.isArray(step.logs)) {
+      return step.logs;
     }
 
-    if (stepMarkers[stepIndex] === undefined) {
-      return [];
+    if (step && typeof step.startIndex === "number" && typeof step.endIndex === "number") {
+      return logs.slice(step.startIndex, step.endIndex);
     }
 
-    const startIndex = stepMarkers[stepIndex];
-    const nextStepIndex = stepIndex + 1;
-    const endIndex =
-      nextStepIndex in stepMarkers && stepMarkers[nextStepIndex] !== undefined
-        ? stepMarkers[nextStepIndex]
-        : logs.length;
-
-    return logs.slice(startIndex, endIndex);
+    return stepIndex === 0 ? logs : [];
   };
 
   const toggleStep = (index: number) => {
@@ -234,12 +218,15 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
               className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden transition-colors"
             >
               {/* Step Header Button */}
-              <button
-                type="button"
-                onClick={() => toggleStep(index)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/40 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
+              <div className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/40 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => toggleStep(index)}
+                  className="flex items-center gap-3 min-w-0 pr-2 flex-1 text-left cursor-pointer"
+                >
+                  <span className="flex items-center justify-center h-5 w-5 rounded bg-zinc-800 text-[10px] font-mono font-semibold text-zinc-400 shrink-0">
+                    {index + 1}
+                  </span>
                   {getStepIcon(step.status)}
                   <span
                     className={`text-xs font-mono font-medium truncate ${
@@ -254,12 +241,22 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
                   >
                     {step.name}
                   </span>
-                </div>
+                </button>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0">
+                  {stepLogs.length > 0 && (
+                    <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/60 px-1.5 py-0.5 rounded">
+                      {stepLogs.length} {stepLogs.length === 1 ? "line" : "lines"}
+                    </span>
+                  )}
                   {step.status === "running" && (
                     <Badge variant="running" size="sm" dot>
                       Running
+                    </Badge>
+                  )}
+                  {step.status === "failed" && (
+                    <Badge variant="failed" size="sm">
+                      Failed
                     </Badge>
                   )}
                   {step.duration && (
@@ -267,13 +264,41 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
                       {step.duration}
                     </span>
                   )}
-                  {isExpanded ? (
-                    <FiChevronDown className="h-4 w-4 text-zinc-400" />
-                  ) : (
-                    <FiChevronRight className="h-4 w-4 text-zinc-600" />
-                  )}
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const plainLogs = stepLogs.map((l) => stripAnsi(l)).join("\n");
+                        await navigator.clipboard.writeText(plainLogs);
+                        setStepCopied(index);
+                        setTimeout(() => setStepCopied(null), 2000);
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    title="Copy step logs"
+                  >
+                    {stepCopied === index ? (
+                      <FiCheck className="h-3.5 w-3.5 text-emerald-400" />
+                    ) : (
+                      <FiCopy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleStep(index)}
+                    className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                  >
+                    {isExpanded ? (
+                      <FiChevronDown className="h-4 w-4 text-zinc-400" />
+                    ) : (
+                      <FiChevronRight className="h-4 w-4 text-zinc-600" />
+                    )}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {/* Step Logs Body */}
               {isExpanded && (

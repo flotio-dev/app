@@ -460,10 +460,11 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         }),
     },
     github: {
-      repos: async () => {
+      repos: async (params?: { installation_id?: number; owner?: string; flutter_only?: boolean }) => {
         const body = await coreRequest<"HandleGithubGetRepositories">(state, {
           method: "GET",
           path: "/github/repos",
+          query: params as Record<string, unknown> | undefined,
         });
         return unwrapDetails<GithubRepositoriesPayload>(body);
       },
@@ -482,10 +483,11 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         });
         return unwrapDetails<PostInstallationPayload>(body);
       },
-      disconnect: async () => {
+      disconnect: async (installationId?: number) => {
         const body = await coreRequest<"HandleDisconnectGithub">(state, {
           method: "DELETE",
           path: "/github/disconnect",
+          query: installationId ? { installation_id: installationId } : undefined,
         });
         return unwrapDetails<GithubDeletePayload>(body);
       },

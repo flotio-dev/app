@@ -23,7 +23,7 @@ export function AppShell({
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   return (
-    <div className="min-h-screen bg-canvas text-text-primary flex flex-col font-sans selection:bg-purple-500/20 selection:text-purple-300 transition-colors duration-200">
+    <div className="min-h-screen bg-canvas text-text-primary flex flex-col font-sans selection:bg-orange-500/20 selection:text-orange-300 transition-colors duration-200">
       {/* Mobile Backdrop Overlay */}
       {sidebarOpen && (
         <div

@@ -96,6 +96,17 @@ export default function ProjectGitDatas() {
     }
   }, [editMode, gitSource]);
 
+  // Auto-refresh when github setup popup finishes
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "FLOTIO_GITHUB_LINKED") {
+        fetchGithubRepos();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   const orgOptions = useMemo(() => {
     const orgs = Array.from(new Set(repos.map((r) => r.owner).filter(Boolean)));
     return orgs.sort();

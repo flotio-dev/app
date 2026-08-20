@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="flotio-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B4A" />
+      <stop offset="50%" stop-color="#FF5722" />
+      <stop offset="100%" stop-color="#E11D48" />
+    </linearGradient>
+  </defs>
+  <rect x="18" y="20" width="64" height="20" rx="10" fill="url(#flotio-icon-gradient)" />
+  <path d="M18 48C18 42.477 22.477 38 28 38H52C57.523 38 62 42.477 62 48C62 53.523 57.523 58 52 58H38V72C38 77.523 33.523 82 28 82C22.477 82 18 77.523 18 72V48Z" fill="url(#flotio-icon-gradient)" />
+</svg>

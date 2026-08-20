@@ -23,7 +23,7 @@
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.6",
     "@mui/material-nextjs": "^7.3.6",
-    "@mui/system": "^7.3.6",
+    "@mui/system": "^9.3.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.26",
     "i18next": "^25.7.3",

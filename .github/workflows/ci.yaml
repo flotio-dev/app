@@ -25,6 +25,7 @@ env:
   NEXT_PUBLIC_APP_ID: flotio-app
 
 jobs:
+  # Vérifie le lint, les types TypeScript et la compilation de production Next.js.
   quality:
     name: Quality
     runs-on: ubuntu-24.04
@@ -53,6 +54,7 @@ jobs:
       - name: Build Next.js
         run: pnpm build
 
+  # Exécute les tests de contrat contre la spécification OpenAPI versionnée dans le dépôt.
   tests:
     name: Tests
     runs-on: ubuntu-24.04
@@ -80,6 +82,7 @@ jobs:
       - name: Run contract tests
         run: pnpm test
 
+  # Contrôle les dépendances si disponible puis bloque les vulnérabilités, secrets et erreurs IaC avec Trivy.
   security-source:
     name: Source security
     runs-on: ubuntu-24.04
@@ -108,6 +111,7 @@ jobs:
           timeout: 15m
           version: v0.74.0
 
+  # Analyse statiquement le code JavaScript/TypeScript avec CodeQL lorsque GitHub Code Security est disponible.
   codeql:
     name: CodeQL
     runs-on: ubuntu-24.04
@@ -136,6 +140,7 @@ jobs:
         if: github.event.repository.private && vars.CODEQL_ENABLED != 'true'
         run: echo "::notice::Enable GitHub Code Security, then set CODEQL_ENABLED=true to enforce CodeQL."
 
+  # Construit l'image une seule fois, la scanne, génère son SBOM puis la conserve comme artefact.
   container-build-and-scan:
     name: Container build and scan
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -220,6 +225,7 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+  # Publie dans GHCR l'image déjà scannée sous un tag immuable lié au commit.
   publish:
     name: Publish immutable image
     if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
@@ -261,6 +267,7 @@ jobs:
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
+  # Atteste la provenance et le SBOM de l'image publiée puis vérifie ces attestations.
   attest:
     name: Attest image and SBOM
     if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
@@ -308,6 +315,7 @@ jobs:
           DIGEST: ${{ needs.publish.outputs.digest }}
         run: gh attestation verify "oci://$IMAGE@$DIGEST" --repo "$GITHUB_REPOSITORY"
 
+  # Associe un tag SemVer à l'image immuable lors de la création d'un tag Git.
   release-alias:
     name: Publish SemVer alias
     if: startsWith(github.ref, 'refs/tags/')
@@ -346,6 +354,7 @@ jobs:
           alias_digest="$(docker buildx imagetools inspect "$image:$GITHUB_REF_NAME" --format '{{json .Manifest.Digest}}' | tr -d '"')"
           test "$alias_digest" = "$source_digest"
 
+  # Met à jour dans k8s_config le digest exact de l'image déployée sur main ou dev.
   update-gitops:
     name: Update GitOps
     if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
@@ -363,7 +372,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          client-id: ${{ secrets.GH_APP_CLIENT_ID }}
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           owner: flotio-dev
           repositories: k8s_config
@@ -441,6 +450,7 @@ jobs:
           git commit -m "app($GITHUB_REF_NAME): $source_short @ sha256:$digest_short" -m "Source: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           git push origin HEAD:main
 
+  # Agrège les résultats obligatoires en un check stable utilisable par la protection de branche.
   ci-success:
     name: ci-success
     if: ${{ always() }}

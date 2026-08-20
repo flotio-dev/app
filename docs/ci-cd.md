@@ -62,9 +62,8 @@ is added unless these controls show a measured gap.
 
 Configure:
 
-- repository variable `GH_APP_CLIENT_ID` containing the GitHub App client ID;
-- repository or environment secret `GH_APP_PRIVATE_KEY` containing its private
-  key.
+- repository or environment secrets `GH_APP_CLIENT_ID` containing the GitHub App
+  client ID and `GH_APP_PRIVATE_KEY` containing its private key.
 
 Install the GitHub App on owner `flotio-dev`, restricted to repository
 `k8s_config`, with only repository **Contents: Read and write**. The workflow

@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     maxAge: ONE_WEEK_SECONDS,
   });
+  response.cookies.set({
+    name: "flotio_logged_in",
+    value: "1",
+    httpOnly: false,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: ONE_WEEK_SECONDS,
+  });
 
   return response;
 }

@@ -53,6 +53,12 @@ export default function NewProjectForm() {
   const [repoSearch, setRepoSearch] = useState("");
   const [flutterOnly, setFlutterOnly] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<string>("all");
+  const [inspectingRepo, setInspectingRepo] = useState(false);
+  const [detectedFlutterInfo, setDetectedFlutterInfo] = useState<{
+    version?: string;
+    source?: string;
+    projectPath?: string;
+  } | null>(null);
   const GITHUB_INSTALL_URL = `https://github.com/apps/${process.env.NEXT_PUBLIC_APP_ID || "flotio-app"}/installations/new`;
 
   const [loading, setLoading] = useState(false);
@@ -136,6 +142,41 @@ export default function NewProjectForm() {
       return matchesSearch && matchesOrg && matchesFlutter;
     });
   }, [repos, repoSearch, selectedOrg, flutterOnly]);
+
+  const handleSelectRepo = async (repo: GithubRepository) => {
+    const owner = repo.owner ?? "";
+    const repoName = repo.name ?? "";
+    const fullName = repo.full_name ?? `${owner}/${repoName}`;
+    const url = `https://github.com/${fullName}`;
+    setGitRepo(url);
+    if (!name.trim() && repoName) {
+      setName(repoName);
+    }
+
+    if (!owner || !repoName) return;
+
+    setInspectingRepo(true);
+    try {
+      const treeResp = await client.github.repo({ owner, repo: repoName });
+      if (treeResp) {
+        if (treeResp.project_path && (buildFolder === "." || !buildFolder.trim())) {
+          setBuildFolder(treeResp.project_path);
+        }
+        if (treeResp.detected_flutter_version) {
+          setFlutterVersion(treeResp.detected_flutter_version);
+          setDetectedFlutterInfo({
+            version: treeResp.detected_flutter_version,
+            source: treeResp.detection_source,
+            projectPath: treeResp.project_path,
+          });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setInspectingRepo(false);
+    }
+  };
 
   const handleCreateProject = async () => {
     setLoading(true);
@@ -244,14 +285,27 @@ export default function NewProjectForm() {
             />
 
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
-                Flutter SDK Version
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Flutter SDK Version
+                </label>
+                {detectedFlutterInfo?.version && (
+                  <span className="text-[11px] text-cyan-400 font-mono flex items-center gap-1">
+                    <span>✨ Auto-detected from {detectedFlutterInfo.source}</span>
+                  </span>
+                )}
+              </div>
               <select
                 value={flutterVersion}
                 onChange={(e) => setFlutterVersion(e.target.value)}
                 className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none"
               >
+                {detectedFlutterInfo?.version &&
+                  !flutterVersions.some((v) => v.version === detectedFlutterInfo.version) && (
+                    <option value={detectedFlutterInfo.version}>
+                      Flutter {detectedFlutterInfo.version} (auto-detected)
+                    </option>
+                  )}
                 {flutterVersions.map((v) => (
                   <option key={`${v.channel}-${v.version}`} value={v.version ?? ""}>
                     Flutter {v.version} ({v.channel})
@@ -394,6 +448,30 @@ export default function NewProjectForm() {
                     </div>
                   </div>
 
+                  {/* Inspection Status Indicators */}
+                  {inspectingRepo && (
+                    <div className="p-2.5 rounded-md bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-300 flex items-center gap-2 font-mono">
+                      <div className="h-3.5 w-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span>Inspecting repository structure and Flutter configuration...</span>
+                    </div>
+                  )}
+
+                  {!inspectingRepo && detectedFlutterInfo?.version && (
+                    <div className="p-2.5 rounded-md bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-300 flex items-center justify-between font-mono">
+                      <div className="flex items-center gap-2">
+                        <span>✨ Auto-detected Flutter <strong>{detectedFlutterInfo.version}</strong></span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/60 text-emerald-200">
+                          from {detectedFlutterInfo.source}
+                        </span>
+                      </div>
+                      {detectedFlutterInfo.projectPath && detectedFlutterInfo.projectPath !== "." && (
+                        <span className="text-[11px] text-emerald-400">
+                          Path: {detectedFlutterInfo.projectPath}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="rounded-lg border border-zinc-800 bg-zinc-950 max-h-64 overflow-y-auto divide-y divide-zinc-850">
                     {loadingRepos ? (
                       <div className="p-6 text-center text-xs text-zinc-500 font-mono">
@@ -421,7 +499,7 @@ export default function NewProjectForm() {
                         return (
                           <div
                             key={repo.id}
-                            onClick={() => setGitRepo(url)}
+                            onClick={() => handleSelectRepo(repo)}
                             className={`p-3 flex items-center justify-between text-xs transition-colors cursor-pointer ${
                               isSelected
                                 ? "bg-cyan-950/30 text-cyan-200"

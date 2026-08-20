@@ -250,6 +250,8 @@ export interface ApiClient {
     postInstallation(installationId: number): Promise<PostInstallationResponse>;
     /** Enveloped: returns `details` (DeleteResponse). */
     disconnect(installationId?: number): Promise<DeleteResponse>;
+    /** Enveloped: returns `details` (GithubTreeResponse with auto-detection). */
+    repo(params: { owner: string; repo: string }): Promise<GithubTreeResponse>;
   };
   flutter: {
     versions(): Promise<FlutterVersionsResponse>;

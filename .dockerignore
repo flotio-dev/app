@@ -1,0 +1,11 @@
+.git
+.github
+.next
+node_modules
+coverage
+tests
+*.log
+.env*
+Dockerfile.dev
+docker-compose.yml
+README.md

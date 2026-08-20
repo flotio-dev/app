@@ -1069,8 +1069,16 @@ export interface components {
             private?: boolean;
         };
         "github_com_flotio-dev_core-api_internal_modules_github_model.GithubTreeResponse": {
+            /** @example 3.24.5 */
+            detected_flutter_version?: string;
+            /** @example fvm */
+            detection_source?: string;
+            /** @example false */
+            has_google_services?: boolean;
             /** @example flotio-dev */
             owner?: string;
+            /** @example . */
+            project_path?: string;
             /** @example api */
             repo?: string;
             tree?: components["schemas"]["github_com_flotio-dev_core-api_internal_modules_github_model.GithubRepoTreeItem"][];

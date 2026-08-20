@@ -491,6 +491,14 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         });
         return unwrapDetails<GithubDeletePayload>(body);
       },
+      repo: async (params: { owner: string; repo: string }) => {
+        const body = await coreRequest<"HandleGithubRepoTree">(state, {
+          method: "GET",
+          path: "/github/repo",
+          query: params,
+        });
+        return unwrapDetails<GithubTreePayload>(body);
+      },
     },
     flutter: {
       versions: () =>
@@ -516,3 +524,7 @@ type PostInstallationPayload = NonNullable<PostInstallationEnvelope["details"]>;
 type GithubDeleteEnvelope =
   components["schemas"]["github_com_flotio-dev_core-api_internal_models.APIResponse-github_com_flotio-dev_core-api_internal_modules_github_model_DeleteResponse"];
 type GithubDeletePayload = NonNullable<GithubDeleteEnvelope["details"]>;
+
+type GithubTreeEnvelope =
+  components["schemas"]["github_com_flotio-dev_core-api_internal_models.APIResponse-github_com_flotio-dev_core-api_internal_modules_github_model_GithubTreeResponse"];
+type GithubTreePayload = NonNullable<GithubTreeEnvelope["details"]>;

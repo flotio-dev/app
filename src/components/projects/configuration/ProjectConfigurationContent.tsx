@@ -552,7 +552,7 @@ const ProjectConfigurationContent: React.FC = () => {
           defaultOpen={false}
           title="Lifecycle Scripts & Hooks"
           description="Custom bash scripts injected into the build pipeline at specific execution phases."
-          icon={<FiTerminal className="h-4 w-4 text-purple-400" />}
+          icon={<FiTerminal className="h-4 w-4 text-orange-400" />}
         >
           <div className="space-y-4 pt-3">
             <div className="space-y-1.5">

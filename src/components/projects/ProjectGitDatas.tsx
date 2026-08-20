@@ -230,7 +230,7 @@ export default function ProjectGitDatas() {
                 onClick={() => setGitSource("github")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   gitSource === "github"
-                    ? "bg-purple-600 text-white shadow-sm"
+                    ? "bg-[#ff5722] text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -242,7 +242,7 @@ export default function ProjectGitDatas() {
                 onClick={() => setGitSource("custom")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   gitSource === "custom"
-                    ? "bg-purple-600 text-white shadow-sm"
+                    ? "bg-[#ff5722] text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -268,7 +268,7 @@ export default function ProjectGitDatas() {
         {/* Selected Repo Banner */}
         <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs">
           <div className="flex items-center gap-2 min-w-0">
-            <FiGlobe className="h-4 w-4 text-cyan-400 shrink-0" />
+            <FiGlobe className="h-4 w-4 text-orange-400 shrink-0" />
             <span className="text-zinc-400">Current Repository:</span>
             <span className="font-mono font-medium text-zinc-100 truncate">
               {form.repoUrl || "No repository configured"}
@@ -279,7 +279,7 @@ export default function ProjectGitDatas() {
               href={form.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-medium shrink-0 ml-2"
+              className="flex items-center gap-1 text-orange-400 hover:text-orange-300 font-medium shrink-0 ml-2"
             >
               <span>Open on GitHub</span>
               <FiExternalLink className="h-3 w-3" />
@@ -298,7 +298,7 @@ export default function ProjectGitDatas() {
                   placeholder="Search repository name or description..."
                   value={repoSearch}
                   onChange={(e) => setRepoSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-hidden focus:border-[#ff5722] focus:ring-1 focus:ring-[#ff5722]/20"
                 />
               </div>
 
@@ -306,7 +306,7 @@ export default function ProjectGitDatas() {
                 <select
                   value={selectedOrg}
                   onChange={(e) => setSelectedOrg(e.target.value)}
-                  className="px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 focus:outline-hidden focus:border-purple-500"
+                  className="px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 focus:outline-hidden focus:border-[#ff5722]"
                 >
                   <option value="all">All Organizations ({repos.length})</option>
                   {orgOptions.map((org) => (
@@ -322,7 +322,7 @@ export default function ProjectGitDatas() {
                 onClick={() => setFlutterOnly(!flutterOnly)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors shrink-0 ${
                   flutterOnly
-                    ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-400"
+                    ? "bg-orange-500/10 border-orange-500/40 text-orange-400"
                     : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -334,7 +334,7 @@ export default function ProjectGitDatas() {
             <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 max-h-60 overflow-y-auto">
               {loadingRepos ? (
                 <div className="p-8 text-center text-xs text-zinc-500 flex flex-col items-center justify-center gap-2">
-                  <FiRefreshCw className="h-4 w-4 animate-spin text-purple-400" />
+                  <FiRefreshCw className="h-4 w-4 animate-spin text-orange-400" />
                   <span>Loading GitHub repositories...</span>
                 </div>
               ) : githubConnected === false ? (
@@ -344,7 +344,7 @@ export default function ProjectGitDatas() {
                     href={`https://github.com/apps/${process.env.NEXT_PUBLIC_APP_ID || "flotio-app"}/installations/new`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white font-medium text-xs hover:bg-purple-500"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff5722] text-white font-medium text-xs hover:bg-[#e64a19]"
                   >
                     <FiGithub className="h-3.5 w-3.5" />
                     Connect GitHub App
@@ -367,17 +367,17 @@ export default function ProjectGitDatas() {
                         onClick={() => handleSelectRepo(repo)}
                         className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                           isSelected
-                            ? "bg-purple-500/10 border-l-2 border-purple-500"
+                            ? "bg-orange-500/10 border-l-2 border-[#ff5722]"
                             : "hover:bg-zinc-900/60"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={`font-mono text-xs font-semibold ${isSelected ? "text-purple-300" : "text-zinc-200"}`}>
+                            <span className={`font-mono text-xs font-semibold ${isSelected ? "text-orange-300" : "text-zinc-200"}`}>
                               {fullName}
                             </span>
                             {isFlutter && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-orange-500/15 text-orange-400 border border-orange-500/30">
                                 Flutter
                               </span>
                             )}
@@ -396,7 +396,7 @@ export default function ProjectGitDatas() {
 
                         <div className="shrink-0">
                           {isSelected ? (
-                            <span className="flex items-center gap-1 text-xs font-medium text-purple-400">
+                            <span className="flex items-center gap-1 text-xs font-medium text-orange-400">
                               <FiCheck className="h-3.5 w-3.5" /> Selected
                             </span>
                           ) : (

@@ -44,7 +44,7 @@ export default function GithubSetupContent() {
     }, [searchParams, router, client]);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-purple-600 to-indigo-700 text-white text-center px-4">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-[#ff6b4a] via-[#ff5722] to-[#e11d48] text-white text-center px-4">
             {status === "loading" && (
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                     <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-6"></div>
@@ -68,7 +68,7 @@ export default function GithubSetupContent() {
                     <p className="text-white/80">{message}</p>
                     <button
                         onClick={() => router.push("/")}
-                        className="mt-6 px-6 py-2 bg-white text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition"
+                        className="mt-6 px-6 py-2 bg-white text-[#ff5722] font-semibold rounded-lg hover:bg-orange-50 transition"
                     >
                         Retour à l’accueil
                     </button>

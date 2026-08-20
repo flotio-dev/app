@@ -200,12 +200,12 @@ export default function AuthForm({
               fontWeight: 600,
               fontSize: '1rem',
               background: colors.primary.gradient,
-              color: theme.palette.text.primary,
-              boxShadow: 'none',
+              color: '#ffffff',
+              boxShadow: '0 4px 14px rgba(255, 87, 34, 0.3)',
               textTransform: 'none',
               '&:hover': {
                 background: colors.primary.gradientHover,
-                boxShadow: `0 6px 20px ${colors.primary.light}4d`,
+                boxShadow: '0 6px 20px rgba(255, 87, 34, 0.45)',
               },
               '&:disabled': {
                 opacity: 0.6,

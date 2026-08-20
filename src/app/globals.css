@@ -18,11 +18,11 @@
   --text-muted: #8c827a;
   --text-inverse: #faf8f5;
 
-  --accent-primary: #8b5cf6;
-  --accent-hover: #7c3aed;
-  --accent-light: #a78bfa;
-  --accent-cyan: #0ea5e9;
-  --accent-glow: rgba(139, 92, 246, 0.15);
+  --accent-primary: #ff5722;
+  --accent-hover: #f4511e;
+  --accent-light: #ff7a50;
+  --accent-cyan: #ff7043;
+  --accent-glow: rgba(255, 87, 34, 0.15);
 
   --status-success: #16a34a;
   --status-success-bg: rgba(22, 163, 74, 0.1);
@@ -61,11 +61,11 @@
 
 .dark, [data-theme="dark"] {
   /* Softened Dark Theme Palette (No pitch black #000000) */
-  --bg-canvas: #0d0e12;
-  --bg-surface: #14151c;
-  --bg-surface-elevated: #1b1d27;
-  --bg-surface-hover: #232532;
-  --bg-surface-active: #2b2e3e;
+  --bg-canvas: #080a0f;
+  --bg-surface: #0f1219;
+  --bg-surface-elevated: #151923;
+  --bg-surface-hover: #1c212f;
+  --bg-surface-active: #232a3b;
 
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-default: rgba(255, 255, 255, 0.12);
@@ -77,11 +77,11 @@
   --text-muted: #64748b;
   --text-inverse: #0f172a;
 
-  --accent-primary: #8b5cf6;
-  --accent-hover: #7c3aed;
-  --accent-light: #a78bfa;
-  --accent-cyan: #38bdf8;
-  --accent-glow: rgba(139, 92, 246, 0.2);
+  --accent-primary: #ff5722;
+  --accent-hover: #f4511e;
+  --accent-light: #ff7a50;
+  --accent-cyan: #ff7043;
+  --accent-glow: rgba(255, 87, 34, 0.2);
 
   --status-success: #22c55e;
   --status-success-bg: rgba(34, 197, 94, 0.12);

@@ -2,22 +2,22 @@
 
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-// Couleurs personnalisées
+// Brand Flame & Coral Theme Colors (matching official Flotio Logo)
 export const colors = {
-  // Primary - Violet
+  // Primary - Vibrant Flame Coral to Crimson
   primary: {
-    main: '#8b5cf6',
-    light: '#a78bfa',
-    dark: '#7c3aed',
-    gradient: 'linear-gradient(135deg, #818cf8 0%, #a855f7 100%)',
-    gradientHover: 'linear-gradient(135deg, #6366f1 0%, #9333ea 100%)',
+    main: '#ff5722',
+    light: '#ff7a50',
+    dark: '#e64a19',
+    gradient: 'linear-gradient(135deg, #ff6b4a 0%, #ff5722 50%, #e11d48 100%)',
+    gradientHover: 'linear-gradient(135deg, #ff7d5e 0%, #f4511e 50%, #be123c 100%)',
   },
-  // Secondary - Pink / Cyan Accent
+  // Secondary - Rose / Crimson Accent
   secondary: {
-    main: '#ec4899',
-    light: '#f472b6',
-    dark: '#db2777',
-    cyan: '#38bdf8',
+    main: '#e11d48',
+    light: '#f43f5e',
+    dark: '#be123c',
+    cyan: '#ff7043',
   },
   // Text colors
   text: {
@@ -37,9 +37,9 @@ export const colors = {
   // Background colors
   background: {
     dark: {
-      default: '#0d0e12',
-      paper: '#14151c',
-      elevated: '#1b1d27',
+      default: '#080a0f',
+      paper: '#0f1219',
+      elevated: '#151923',
       card: 'rgba(255, 255, 255, 0.03)',
       cardHover: 'rgba(255, 255, 255, 0.06)',
     },
@@ -57,13 +57,13 @@ export const colors = {
       default: 'rgba(255, 255, 255, 0.1)',
       light: 'rgba(255, 255, 255, 0.06)',
       hover: 'rgba(255, 255, 255, 0.2)',
-      grid: '#7c3aed', // violet grid for dark mode
+      grid: 'rgba(255, 87, 34, 0.08)',
     },
     light: {
       default: 'rgba(44, 34, 24, 0.10)',
       light: 'rgba(44, 34, 24, 0.06)',
       hover: 'rgba(44, 34, 24, 0.18)',
-      grid: 'rgba(124, 58, 237, 0.10)',
+      grid: 'rgba(255, 87, 34, 0.06)',
     },
   },
   // Status colors
@@ -72,8 +72,8 @@ export const colors = {
   warning: '#f59e0b',
   info: '#38bdf8',
   heroBackground: {
-    dark: 'linear-gradient(180deg, #0d0e12 0%, #14151c 40%, #171226 60%, #0d0e12 100%)',
-    light: 'linear-gradient(180deg, #faf8f5 0%, #f7f3eb 40%, #efe8dc 60%, #faf8f5 100%)',
+    dark: 'linear-gradient(180deg, #080a0f 0%, #0f1219 40%, #171115 60%, #080a0f 100%)',
+    light: 'linear-gradient(180deg, #faf8f5 0%, #fff7ed 40%, #ffedd5 60%, #faf8f5 100%)',
   },
 };
 
@@ -148,26 +148,14 @@ export const darkTheme = createTheme({
       light: colors.secondary.light,
       dark: colors.secondary.dark,
     },
-    background: {
-      default: colors.background.dark.default,
-      paper: colors.background.dark.paper,
-    },
     text: {
       primary: colors.text.dark.primary,
       secondary: colors.text.dark.secondary,
       disabled: colors.text.dark.disabled,
     },
-    success: {
-      main: colors.success,
-    },
-    error: {
-      main: colors.error,
-    },
-    warning: {
-      main: colors.warning,
-    },
-    info: {
-      main: colors.info,
+    background: {
+      default: colors.background.dark.default,
+      paper: colors.background.dark.paper,
     },
     divider: colors.border.dark.default,
   },
@@ -188,26 +176,14 @@ export const lightTheme = createTheme({
       light: colors.secondary.light,
       dark: colors.secondary.dark,
     },
-    background: {
-      default: colors.background.light.default,
-      paper: colors.background.light.paper,
-    },
     text: {
       primary: colors.text.light.primary,
       secondary: colors.text.light.secondary,
       disabled: colors.text.light.disabled,
     },
-    success: {
-      main: colors.success,
-    },
-    error: {
-      main: colors.error,
-    },
-    warning: {
-      main: colors.warning,
-    },
-    info: {
-      main: colors.info,
+    background: {
+      default: colors.background.light.default,
+      paper: colors.background.light.paper,
     },
     divider: colors.border.light.default,
   },

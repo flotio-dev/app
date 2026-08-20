@@ -7,6 +7,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { useApi, clearLocalSession } from "@/hooks/useApi";
 import { useCliModal } from "@/context/CliModalContext";
 import type { Project } from "@/lib/api/types";
+import FlotioLogo from "@/components/common/FlotioLogo";
 
 // Icons
 import {
@@ -125,9 +126,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             onClick={() => onClose?.()}
             className="flex items-center gap-2.5 group"
           >
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:opacity-90 transition-opacity">
-              F
-            </div>
+            <FlotioLogo size={28} className="shrink-0 group-hover:scale-105 transition-transform" />
             <div className="flex items-baseline gap-1.5">
               <span className="font-bold tracking-tight text-text-primary text-base">Flotio</span>
               <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-elevated border border-border-subtle text-text-muted">
@@ -319,7 +318,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <div className="p-3 border-t border-border-subtle bg-surface relative">
         <div className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-hover transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-purple-700 to-indigo-600 border border-border-subtle flex items-center justify-center text-xs font-semibold text-white shrink-0">
+            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-[#ff5722] to-[#e11d48] border border-border-subtle flex items-center justify-center text-xs font-semibold text-white shrink-0 shadow-xs">
               {initials}
             </div>
             <div className="min-w-0">

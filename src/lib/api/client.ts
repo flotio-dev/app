@@ -475,6 +475,14 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         });
         return unwrapDetails<GithubInstallationPayload>(body);
       },
+      listInstallations: async () => {
+        const body = await coreRequest<"HandleGithubCheckInstallation">(state, {
+          method: "GET",
+          path: "/github/installations",
+          query: { all: true },
+        });
+        return unwrapDetails<{ installations: GithubInstallationPayload[] }>(body) as { installations: GithubInstallationPayload[] };
+      },
       postInstallation: async (installationId) => {
         const body = await coreRequest<"HandleGithubPostInstallation">(state, {
           method: "POST",

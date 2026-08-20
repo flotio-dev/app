@@ -18,14 +18,28 @@ const GithubConnect: React.FC = () => {
   const fetchInstallations = async () => {
     setLoading(true);
     try {
-      const data = await client.github.checkInstallation();
-      if (data && data.installation_id) {
-        setInstallations([data]);
+      const data = await client.github.listInstallations();
+      if (data && Array.isArray(data.installations) && data.installations.length > 0) {
+        setInstallations(data.installations);
       } else {
-        setInstallations([]);
+        const single = await client.github.checkInstallation();
+        if (single && single.installation_id) {
+          setInstallations([single]);
+        } else {
+          setInstallations([]);
+        }
       }
     } catch {
-      setInstallations([]);
+      try {
+        const single = await client.github.checkInstallation();
+        if (single && single.installation_id) {
+          setInstallations([single]);
+        } else {
+          setInstallations([]);
+        }
+      } catch {
+        setInstallations([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -33,6 +47,17 @@ const GithubConnect: React.FC = () => {
 
   useEffect(() => {
     fetchInstallations();
+  }, [client]);
+
+  // Auto-refresh when another account/org is linked via popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "FLOTIO_GITHUB_LINKED") {
+        fetchInstallations();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [client]);
 
   const handleConnect = () => {
@@ -57,7 +82,7 @@ const GithubConnect: React.FC = () => {
     <Card className="p-0 overflow-hidden mb-6 border-zinc-800 bg-zinc-950">
       <CardHeader className="flex-row items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <FiGithub className="h-4 w-4 text-cyan-400" />
+          <FiGithub className="h-4 w-4 text-orange-400" />
           <CardTitle>GitHub Integration & Organizations</CardTitle>
         </div>
 

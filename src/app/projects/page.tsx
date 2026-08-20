@@ -14,8 +14,8 @@ export default function ProjectsPage() {
   return (
     <AppShell
       headerActions={
-        <div className="flex items-center gap-3">
-          <div className="w-48 sm:w-64">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden sm:block w-40 md:w-60">
             <Input
               placeholder="Search projects..."
               value={search}
@@ -30,7 +30,8 @@ export default function ProjectsPage() {
               size="sm"
               leftIcon={<FiPlus className="h-3.5 w-3.5" />}
             >
-              New Project
+              <span className="hidden sm:inline">New Project</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </Link>
         </div>
@@ -44,6 +45,17 @@ export default function ProjectsPage() {
               Manage your connected mobile application repositories and CI/CD pipelines.
             </p>
           </div>
+        </div>
+
+        {/* Mobile Search Bar */}
+        <div className="sm:hidden">
+          <Input
+            placeholder="Search projects..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            leftElement={<FiSearch className="h-3.5 w-3.5" />}
+            className="h-9 text-xs bg-zinc-900/80 border-zinc-800 w-full"
+          />
         </div>
 
         <ListingProjects search={search} />

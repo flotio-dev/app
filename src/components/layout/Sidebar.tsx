@@ -21,9 +21,15 @@ import {
   FiPlay,
   FiCpu,
   FiCode,
+  FiX,
 } from "react-icons/fi";
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuth();
@@ -69,6 +75,7 @@ export function Sidebar() {
       // ignore
     }
     clearAuth();
+    onClose?.();
     router.push("/auth/login");
   };
 
@@ -104,12 +111,20 @@ export function Sidebar() {
     : "FL";
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border-subtle bg-surface flex flex-col justify-between z-30 select-none transition-colors duration-200">
+    <aside
+      className={`fixed left-0 top-0 h-screen w-64 border-r border-border-subtle bg-surface flex flex-col justify-between z-50 select-none transition-transform duration-300 ease-in-out ${
+        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+      } lg:translate-x-0`}
+    >
       {/* Top section */}
       <div className="flex flex-col flex-1 min-h-0">
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-border-subtle">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <Link
+            href="/dashboard"
+            onClick={() => onClose?.()}
+            className="flex items-center gap-2.5 group"
+          >
             <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:opacity-90 transition-opacity">
               F
             </div>
@@ -120,6 +135,16 @@ export function Sidebar() {
               </span>
             </div>
           </Link>
+
+          {/* Close button on mobile */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+            aria-label="Close sidebar"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Main Navigation */}
@@ -130,6 +155,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => onClose?.()}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
                     ? "bg-surface-elevated text-text-primary font-semibold shadow-xs border border-border-subtle"
@@ -217,6 +243,7 @@ export function Sidebar() {
                       >
                         <Link
                           href={`/projects/${pId}`}
+                          onClick={() => onClose?.()}
                           className="flex items-center gap-2 min-w-0 flex-1 truncate"
                         >
                           <span
@@ -244,6 +271,7 @@ export function Sidebar() {
                         <div className="pl-6 pr-2 py-0.5 space-y-0.5 text-[11px] border-l border-border-subtle ml-3">
                           <Link
                             href={`/projects/${pId}`}
+                            onClick={() => onClose?.()}
                             className={`block py-1 px-2 rounded transition-colors ${
                               pathname === `/projects/${pId}`
                                 ? "text-text-primary font-medium bg-surface-elevated"
@@ -254,6 +282,7 @@ export function Sidebar() {
                           </Link>
                           <Link
                             href={`/projects/${pId}/builds`}
+                            onClick={() => onClose?.()}
                             className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${
                               pathname.includes(`/projects/${pId}/builds`)
                                 ? "text-text-primary font-medium bg-surface-elevated"
@@ -265,6 +294,7 @@ export function Sidebar() {
                           </Link>
                           <Link
                             href={`/projects/${pId}/configuration`}
+                            onClick={() => onClose?.()}
                             className={`flex items-center gap-1.5 py-1 px-2 rounded transition-colors ${
                               pathname.includes(`/projects/${pId}/configuration`)
                                 ? "text-text-primary font-medium bg-surface-elevated"

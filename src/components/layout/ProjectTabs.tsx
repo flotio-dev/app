@@ -34,13 +34,13 @@ export function ProjectTabs({ projectId }: ProjectTabsProps) {
   ];
 
   return (
-    <div className="w-full border-b border-border-subtle bg-surface/50 px-6 backdrop-blur-xs transition-colors duration-200">
-      <div className="flex items-center space-x-6">
+    <div className="w-full border-b border-border-subtle bg-surface/50 px-3 sm:px-6 backdrop-blur-xs transition-colors duration-200 overflow-x-auto no-scrollbar">
+      <div className="flex items-center space-x-4 sm:space-x-6 min-w-max">
         {tabs.map((tab) => (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex items-center gap-2 py-3 text-xs font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 py-3 text-xs font-medium border-b-2 transition-colors shrink-0 ${
               tab.active
                 ? "border-accent-primary text-text-primary font-semibold"
                 : "border-transparent text-text-muted hover:text-text-primary hover:border-border-default"

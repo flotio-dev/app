@@ -231,7 +231,7 @@ export default function NewProjectForm() {
                     {isDone ? <FiCheck className="h-3.5 w-3.5 stroke-[3]" /> : step.id + 1}
                   </div>
                   <span
-                    className={`text-xs font-medium ${
+                    className={`text-xs font-medium hidden sm:inline ${
                       isCurrent ? "text-zinc-100 font-semibold" : "text-zinc-500"
                     }`}
                   >
@@ -239,7 +239,7 @@ export default function NewProjectForm() {
                   </span>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className="flex-1 h-px bg-zinc-800 mx-3" />
+                  <div className="flex-1 h-px bg-zinc-800 mx-2 sm:mx-3 min-w-[12px]" />
                 )}
               </React.Fragment>
             );

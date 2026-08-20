@@ -104,6 +104,9 @@ export type GithubRepositoriesResponse =
   Schema["github_com_flotio-dev_core-api_internal_modules_github_model.GithubRepositoriesResponse"];
 export type GithubInstallationResponse =
   Schema["github_com_flotio-dev_core-api_internal_modules_github_model.GithubInstallationResponse"];
+export type GithubInstallationsListResponse = {
+  installations: GithubInstallationResponse[];
+};
 export type PostInstallationRequest = Schema["github_com_flotio-dev_core-api_internal_modules_github_model.PostInstallationRequest"];
 export type PostInstallationResponse =
   Schema["github_com_flotio-dev_core-api_internal_modules_github_model.PostInstallationResponse"];
@@ -246,6 +249,8 @@ export interface ApiClient {
     }): Promise<GithubRepositoriesResponse>;
     /** Enveloped: returns `details` (GithubInstallationResponse). */
     checkInstallation(): Promise<GithubInstallationResponse>;
+    /** Enveloped: returns `details` (GithubInstallationsListResponse with all linked accounts). */
+    listInstallations(): Promise<GithubInstallationsListResponse>;
     /** Enveloped: returns `details` (PostInstallationResponse). */
     postInstallation(installationId: number): Promise<PostInstallationResponse>;
     /** Enveloped: returns `details` (DeleteResponse). */

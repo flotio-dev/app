@@ -11,8 +11,7 @@ rollout, and owns deployment and rollback behavior.
 | --- | --- | --- | --- |
 | Pull request to `main` or `dev` | lint, TypeScript, tests, Next.js build, dependency review, Trivy and CodeQL | built once, scanned, SBOM uploaded; never published | no access |
 | Push to `dev` | all blocking checks | `ghcr.io/flotio-dev/app:sha-<full-sha>`, SPDX SBOM and optional GitHub attestations | updates `manifest/dev/app/deploy-app.yaml` |
-| Push to `main` | all blocking checks | same immutable convention | waits for the protected `production` environment, then updates `manifest/prod/app/deploy-app.yaml` |
-| Tag `vX.Y.Z` | source checks and attestation verification when enabled | adds the `vX.Y.Z` alias to the already-published `sha-<full-sha>` artifact; no rebuild | no access |
+| Push to `main` | all blocking checks | same immutable convention; automatically computes SemVer tag, publishes alias, creates GitHub release | waits for the protected `production` environment, then updates `manifest/prod/app/deploy-app.yaml` |
 | Manual or weekly run | validation and image scan | local only | no access |
 
 The stable required check is `ci-success`. It fails when a mandatory job fails
@@ -52,7 +51,7 @@ Never put a credential in a `NEXT_PUBLIC_*` variable or Docker build argument.
 - CodeQL advanced analysis for JavaScript/TypeScript;
 - Trivy scan of the exact locally-built image, failing on High/Critical;
 - SPDX JSON SBOM and, when available, GitHub-native provenance/SBOM attestations;
-- `gh attestation verify` before GitOps and before creating a SemVer alias when enabled.
+- `gh attestation verify` before GitOps when enabled.
 
 Public repositories enable attestations automatically. Private repositories skip them
 unless the repository variable `ATTESTATIONS_ENABLED` is set to `true`; enable it only
@@ -85,7 +84,7 @@ All jobs inherit `contents: read`. Exceptions are deliberately narrow:
 | `codeql` | `security-events: write` |
 | `publish` | `packages: write` |
 | `attest` | `packages: write`, `id-token: write`, `attestations: write`, `artifact-metadata: write` |
-| `release-alias` | `packages: write`, `attestations: read` |
+| `auto-release` | `contents: write`, `packages: write` |
 
 The GitOps write capability comes only from the scoped GitHub App token, not
 from `GITHUB_TOKEN`.
@@ -105,14 +104,9 @@ path exclusions.
 
 ## Release procedure
 
-1. Merge the release commit to `main` and wait for `ci-success`.
-2. Confirm `ghcr.io/flotio-dev/app:sha-<commit-sha>` exists and, when enabled, is attested.
-3. Create an explicit signed or annotated tag: `git tag -s vX.Y.Z <commit>`.
-4. Push it: `git push origin vX.Y.Z`.
-
-The tag workflow validates strict SemVer, verifies the existing SHA image
-attestation when enabled, and adds only a registry alias. It does not create a Git tag,
-GitHub release, new image, or GitOps change.
+1. Merge the feature or fix commit into `main`.
+2. The CI pipeline runs `auto-release` on `main`, automatically computing the next SemVer version, tagging the repository, creating a GitHub release with generated release notes, and publishing the SemVer image alias.
+3. The GitOps workflow automatically updates `manifest/prod/app/deploy-app.yaml` with the immutable digest.
 
 ## Local verification
 

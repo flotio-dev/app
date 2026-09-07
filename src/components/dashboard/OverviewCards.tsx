@@ -3,18 +3,20 @@
 import React, { useMemo } from "react";
 import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 import { Card } from "@/components/ui/Card";
-import { FiActivity, FiCheckCircle, FiClock, FiFolder } from "react-icons/fi";
+import { FiActivity, FiCheckCircle, FiClock, FiFolder, FiServer } from "react-icons/fi";
+import { SiAndroid, SiKubernetes } from "react-icons/si";
 
 const OverviewCards: React.FC = () => {
   const { builds, projects } = useDashboardData();
 
-  const { totalProjects, totalBuilds, successRate, avgBuildTime } = useMemo(() => {
+  const { totalProjects, totalBuilds, successRate, avgBuildTime, activeRunningBuilds } = useMemo(() => {
     if (projects.length === 0) {
-      return { totalProjects: "0", totalBuilds: "0", successRate: "—", avgBuildTime: "—" };
+      return { totalProjects: "0", totalBuilds: "0", successRate: "—", avgBuildTime: "—", activeRunningBuilds: "0" };
     }
 
     const total = builds.length;
     const successes = builds.filter((build) => build.status === "success").length;
+    const running = builds.filter((build) => ["building", "running", "pending"].includes((build.status || "").toLowerCase())).length;
     const successPct = total > 0 ? Math.round((successes / total) * 1000) / 10 : null;
 
     const durations = builds
@@ -30,33 +32,34 @@ const OverviewCards: React.FC = () => {
       totalBuilds: String(total),
       successRate: successPct === null ? "—" : `${successPct}%`,
       avgBuildTime: avgDuration === null ? "—" : `${avgDuration}s`,
+      activeRunningBuilds: String(running),
     };
   }, [builds, projects]);
 
   const cards = [
     {
-      label: "Active Projects",
+      label: "Android Projects",
       value: totalProjects,
-      description: "Total Flutter repositories configured",
-      icon: <FiFolder className="h-4 w-4 text-cyan-400" />,
-      accent: "text-cyan-400",
+      description: "Flutter repositories configured",
+      icon: <SiAndroid className="h-4 w-4 text-[#3DDC84]" />,
+      accent: "text-[#3DDC84]",
     },
     {
       label: "Total Builds",
       value: totalBuilds,
-      description: "Triggered build workflows",
-      icon: <FiActivity className="h-4 w-4 text-blue-400" />,
-      accent: "text-blue-400",
+      description: `${activeRunningBuilds} active pods running`,
+      icon: <FiActivity className="h-4 w-4 text-cyan-400" />,
+      accent: "text-cyan-400",
     },
     {
-      label: "Success Rate",
+      label: "Pipeline Success",
       value: successRate,
-      description: "Pipelines passing successfully",
+      description: "Release passing rate",
       icon: <FiCheckCircle className="h-4 w-4 text-emerald-400" />,
       accent: "text-emerald-400",
     },
     {
-      label: "Avg. Duration",
+      label: "Avg. Compilation",
       value: avgBuildTime,
       description: "Mean build execution time",
       icon: <FiClock className="h-4 w-4 text-amber-400" />,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useDashboardData } from "@/components/dashboard/DashboardDataProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { AndroidBadge } from "@/components/common/AndroidBadge";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { FiFolder, FiArrowUpRight, FiGitBranch, FiUser } from "react-icons/fi";
 
@@ -69,9 +70,7 @@ function RecentProjects() {
                         {project.name}
                       </h4>
                     </div>
-                    <Badge variant="neutral" size="sm">
-                      {project.config?.flutter_version || "Flutter"}
-                    </Badge>
+                    <AndroidBadge target="apk" size="sm" />
                   </div>
 
                   <div className="mt-3 space-y-1.5 text-xs text-zinc-400">

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { Project } from "@/lib/api/types";
+import { AndroidBadge } from "@/components/common/AndroidBadge";
 
 import {
   FiFolder,
@@ -230,25 +231,35 @@ export default function ListingProjects({ search }: ListingProjectsProps) {
                 className="group flex flex-col justify-between p-5 transition-all duration-200 cursor-pointer"
               >
                 <div>
-                  {/* Top row: Title + Status */}
+                  {/* Top row: Title + Android Badge + Status */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-300 transition-colors truncate">
-                        {project.name}
-                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-300 transition-colors truncate">
+                          {project.name}
+                        </h3>
+                        <AndroidBadge target="apk" size="sm" />
+                      </div>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
                       {getStatusBadge(project.status)}
                     </div>
                   </div>
 
-                  {/* Git Repo */}
-                  <div className="mt-2.5 space-y-1 text-xs text-zinc-400">
+                  {/* Git Repo & Flutter Target */}
+                  <div className="mt-2.5 space-y-1.5 text-xs text-zinc-400">
                     <div className="flex items-center gap-1.5 truncate font-mono text-[11px] text-zinc-400">
                       <FiGitBranch className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
                       <span className="truncate">
                         {project.repoUrl || "No repository linked"}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                        Flutter {project.flutterVersion}
+                      </span>
+                      <span>•</span>
+                      <span>Gradle K8S Pod</span>
                     </div>
                   </div>
                 </div>

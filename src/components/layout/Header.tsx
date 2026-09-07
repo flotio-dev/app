@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/useApi";
 import { useCliModal } from "@/context/CliModalContext";
 import { FiChevronRight, FiTerminal, FiMenu } from "react-icons/fi";
 import { Button } from "@/components/ui/Button";
+import { ClusterStatusMenu } from "./ClusterStatusMenu";
 
 interface HeaderProps {
   customBreadcrumbs?: Array<{ label: string; href?: string }>;
@@ -162,11 +163,8 @@ export function Header({ customBreadcrumbs, actions, onOpenSidebar }: HeaderProp
           <span className="hidden sm:inline">CLI</span>
         </button>
 
-        {/* Status indicator */}
-        <div className="hidden md:flex items-center gap-1.5 text-[11px] text-text-muted pl-2 border-l border-border-subtle">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>API Connected</span>
-        </div>
+        {/* Cluster & Monitoring Telemetry Menu */}
+        <ClusterStatusMenu />
       </div>
     </header>
   );

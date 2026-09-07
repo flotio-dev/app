@@ -66,8 +66,8 @@ importers:
         specifier: ^5.7.0
         version: 5.7.0(react@19.2.8)
       uuid:
-        specifier: ^13.0.0
-        version: 13.0.2
+        specifier: ^14.0.2
+        version: 14.0.2
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -2994,8 +2994,8 @@ packages:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
-  uuid@13.0.2:
-    resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
+  uuid@14.0.2:
+    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
     hasBin: true
 
   vite@8.2.1:
@@ -6206,7 +6206,7 @@ snapshots:
 
   uuid@11.1.1: {}
 
-  uuid@13.0.2: {}
+  uuid@14.0.2: {}
 
   vite@8.2.1(@types/node@26.2.0)(jiti@2.7.0)(yaml@2.9.0):
     dependencies:

@@ -1,3 +1,6 @@
+overrides:
+  browserslist: ^4.28.7
+
 allowBuilds:
   core-js: true
   sharp: true

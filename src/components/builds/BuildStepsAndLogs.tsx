@@ -203,7 +203,8 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
           </div>
         </div>
 
-        {/* Steps Accordion */}
+        {/* Steps Accordion & Pipeline Stepper */}
+        <div className="relative pl-4 space-y-3 before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-zinc-800/80">
         {steps.map((step, index) => {
           const isExpanded = expandedSteps.has(index);
           const stepLogs = getStepLogs(index);
@@ -215,21 +216,21 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
                 if (el) stepRefs.current.set(index, el);
                 else stepRefs.current.delete(index);
               }}
-              className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden transition-colors"
+              className="relative rounded-xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xs overflow-hidden transition-all duration-150 hover:border-zinc-700/80"
             >
               {/* Step Header Button */}
-              <div className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/40 transition-colors">
+              <div className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors">
                 <button
                   type="button"
                   onClick={() => toggleStep(index)}
                   className="flex items-center gap-3 min-w-0 pr-2 flex-1 text-left cursor-pointer"
                 >
-                  <span className="flex items-center justify-center h-5 w-5 rounded bg-zinc-800 text-[10px] font-mono font-semibold text-zinc-400 shrink-0">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-zinc-950 border border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 shrink-0 z-10 shadow-xs">
                     {index + 1}
                   </span>
                   {getStepIcon(step.status)}
                   <span
-                    className={`text-xs font-mono font-medium truncate ${
+                    className={`text-xs font-mono font-semibold truncate ${
                       step.status === "running"
                         ? "text-cyan-300"
                         : step.status === "failed"
@@ -325,6 +326,7 @@ const BuildStepsAndLogs: React.FC<BuildStepsAndLogsProps> = ({ steps, logs }) =>
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

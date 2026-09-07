@@ -7,6 +7,8 @@ import { useApi } from "@/hooks/useApi";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { AndroidBadge } from "@/components/common/AndroidBadge";
+import { QrCodeModal } from "@/components/common/QrCodeModal";
 import {
   FiPlay,
   FiDownload,
@@ -17,6 +19,7 @@ import {
   FiClock,
   FiArrowLeft,
   FiExternalLink,
+  FiSmartphone,
 } from "react-icons/fi";
 
 interface BuildDetailsHeaderProps {
@@ -47,8 +50,11 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrDownloadUrl, setQrDownloadUrl] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [isLoadingQr, setIsLoadingQr] = useState(false);
 
   const isRunning = ["building", "pending", "running"].includes(status.toLowerCase());
   const isSuccess = status.toLowerCase() === "success";
@@ -62,6 +68,26 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
       }
     } catch (error) {
       console.error("Error downloading build:", error);
+    }
+  };
+
+  const handleOpenQrCode = async () => {
+    if (!projectId || !buildId) return;
+    if (qrDownloadUrl) {
+      setQrModalOpen(true);
+      return;
+    }
+    setIsLoadingQr(true);
+    try {
+      const data = await client.builds.download(Number(projectId), Number(buildId));
+      if (data.download_url) {
+        setQrDownloadUrl(data.download_url);
+        setQrModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error obtaining download URL for QR code:", error);
+    } finally {
+      setIsLoadingQr(false);
     }
   };
 
@@ -116,12 +142,13 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
             <FiArrowLeft className="h-4 w-4" />
           </Link>
 
-          <div className="min-w-0">
+            <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-lg font-bold text-zinc-100 font-mono tracking-tight">
                 Build #{buildId}
               </h2>
               {getStatusBadge()}
+              <AndroidBadge target="apk" size="sm" />
             </div>
 
             <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 flex-wrap font-mono">
@@ -146,7 +173,7 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+        <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
           {isRunning && (
             <Button
               variant="danger"
@@ -159,14 +186,27 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
           )}
 
           {isSuccess && (
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<FiDownload className="h-3.5 w-3.5" />}
-              onClick={handleDownload}
-            >
-              Download APK
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<FiSmartphone className="h-3.5 w-3.5 text-emerald-400" />}
+                onClick={handleOpenQrCode}
+                isLoading={isLoadingQr}
+                className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+              >
+                Scan QR Code
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<FiDownload className="h-3.5 w-3.5" />}
+                onClick={handleDownload}
+              >
+                Download APK
+              </Button>
+            </>
           )}
 
           <Button
@@ -179,6 +219,16 @@ const BuildDetailsHeader: React.FC<BuildDetailsHeaderProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* QR Code Modal for Live Demo on Smartphone */}
+      {qrDownloadUrl && (
+        <QrCodeModal
+          isOpen={qrModalOpen}
+          onClose={() => setQrModalOpen(false)}
+          downloadUrl={qrDownloadUrl}
+          buildId={buildId}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal
